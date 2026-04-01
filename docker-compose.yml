@@ -1,0 +1,95 @@
+version: "3.8"
+
+services:
+  # ─── WORKSPACE (mandatory) ───
+  workspace:
+    build:
+      context: ./services/workspace
+      dockerfile: Dockerfile
+      args:
+        WORKSPACE_USER: ${WORKSPACE_USER:-developer}
+        WORKSPACE_UID: ${WORKSPACE_UID:-1000}
+        WORKSPACE_GID: ${WORKSPACE_GID:-1000}
+        WORKSPACE_SHELL: ${WORKSPACE_SHELL:-/bin/bash}
+    container_name: ${PROJECT_NAME}_workspace
+    hostname: ${PROJECT_NAME}-workspace
+    volumes:
+      - ./instances/${PROJECT_NAME}/www:/home/${WORKSPACE_USER:-developer}/workspace
+    ports:
+      - "${WORKSPACE_SSH_PORT:-2222}:22"
+    networks:
+      - net
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+  # ─── PHP ───
+  php:
+    build:
+      context: ./services/php
+      dockerfile: Dockerfile
+      args:
+        PHP_VERSION: ${PHP_VERSION:-8.3}
+        PHP_EXTENSIONS: ${PHP_EXTENSIONS:-"pdo pdo_mysql mysqli mbstring zip gd curl intl"}
+    container_name: ${PROJECT_NAME}_php
+    hostname: ${PROJECT_NAME}-php
+    volumes:
+      - ./instances/${PROJECT_NAME}/www:/var/www/html
+      - ./config/php/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    networks:
+      - net
+    depends_on:
+      - workspace
+    restart: unless-stopped
+    profiles:
+      - php
+
+  # ─── MYSQL ───
+  mysql:
+    image: mysql:${MYSQL_VERSION:-8.0}
+    container_name: ${PROJECT_NAME}_mysql
+    hostname: ${PROJECT_NAME}-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-app_db}
+      MYSQL_USER: ${MYSQL_USER:-app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-secret}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./config/mysql/my.cnf:/etc/mysql/conf.d/custom.cnf
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    networks:
+      - net
+    restart: unless-stopped
+    profiles:
+      - mysql
+
+  # ─── PHPMYADMIN ───
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: ${PROJECT_NAME}_phpmyadmin
+    hostname: ${PROJECT_NAME}-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    ports:
+      - "${PHPMYADMIN_PORT:-8080}:80"
+    networks:
+      - net
+    depends_on:
+      - mysql
+    restart: unless-stopped
+    profiles:
+      - phpmyadmin
+
+networks:
+  net:
+    name: ${PROJECT_NAME}_net
+    driver: bridge
+
+volumes:
+  mysql_data:
+    name: ${PROJECT_NAME}_mysql_data
+    driver: local
