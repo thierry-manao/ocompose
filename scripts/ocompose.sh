@@ -23,17 +23,32 @@ require_instance() {
     fi
 }
 
+normalize_env_file() {
+    local env_file="$INSTANCES_DIR/$INSTANCE/.env"
+    local normalized_env_file
+
+    normalized_env_file="$(mktemp)"
+    sed 's/\r$//' "$env_file" > "$normalized_env_file"
+    echo "$normalized_env_file"
+}
+
 # ── Load instance env ──
 load_instance_env() {
     local env_file="$INSTANCES_DIR/$INSTANCE/.env"
+    local normalized_env_file
     if [[ ! -f "$env_file" ]]; then
         echo -e "${RED}✗ Instance '$INSTANCE' not found.${NC}"
         echo "  Run: ocompose.sh $INSTANCE init"
         exit 1
     fi
+
+    # Accept .env files created on Windows by stripping CRLF before sourcing.
+    normalized_env_file="$(normalize_env_file)"
+
     set -a
-    source "$env_file"
+    source "$normalized_env_file"
     set +a
+    rm -f "$normalized_env_file"
     export PROJECT_NAME="$INSTANCE"
 }
 
@@ -48,13 +63,17 @@ get_profiles() {
 
 compose_cmd() {
     local profiles
+    local normalized_env_file
     profiles=$(get_profiles)
+
+    normalized_env_file="$(normalize_env_file)"
     docker compose \
         -f "$PROJECT_DIR/docker-compose.yml" \
-        --env-file "$INSTANCES_DIR/$INSTANCE/.env" \
+        --env-file "$normalized_env_file" \
         -p "$INSTANCE" \
         $profiles \
         "$@"
+    rm -f "$normalized_env_file"
 }
 
 # ════════════════════════════════════════════
