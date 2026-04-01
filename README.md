@@ -3,7 +3,7 @@
 
 **Reproducible Docker Mini OS with configurable tools — multi-instance support.**
 
-Spin up isolated development environments with PHP, MySQL, phpMyAdmin, and Git — each with its own config, ports, and data.
+Spin up isolated development environments with Nginx, PHP, MySQL, phpMyAdmin, and Git — each with its own config, ports, and data.
 
 ---
 
@@ -34,6 +34,7 @@ nano instances/myapp/.env
 | Service              | Type              | Description                                             |
 | -------------------- | ----------------- | ------------------------------------------------------- |
 | **Workspace**  | ✅ Mandatory      | Ubuntu mini-OS with**Git**, curl, vim, wget, etc. |
+| **Nginx**      | ⚙️ Configurable | Web server exposing your app on a host port             |
 | **PHP**        | ⚙️ Configurable | PHP-FPM + Composer (version configurable)               |
 | **MySQL**      | ⚙️ Configurable | MySQL server (version configurable)                     |
 | **phpMyAdmin** | ⚙️ Configurable | Web UI for MySQL                                        |
@@ -46,8 +47,8 @@ Each instance is fully isolated with its own containers, network, volumes, and p
 
 ```bash
 # Create multiple instances
-./scripts/ocompose.sh client-a init    # ports: 3306, 8080, 2222
-./scripts/ocompose.sh blog init        # ports: 3316, 8090, 2232
+./scripts/ocompose.sh client-a init    # ports: 8000, 3306, 8080, 2222
+./scripts/ocompose.sh blog init        # ports: 8010, 3316, 8090, 2232
 
 # Start them independently
 ./scripts/ocompose.sh client-a up
@@ -62,9 +63,9 @@ Output:
 ```
 📦 ocompose instances:
 
-   INSTANCE             STATUS       MYSQL      PMA        SSH
-   client-a             running      3306       8080       2222
-   blog                 running      3316       8090       2232
+  INSTANCE             STATUS       APP        MYSQL      PMA        SSH
+  client-a             running      8000       3306       8080       2222
+  blog                 running      8010       3316       8090       2232
 ```
 
 ---
@@ -92,7 +93,7 @@ Commands:
 
 ## Configuration
 
-Each instance has its own `.env` file at `instances/<name>/.env`.
+Each instance has its own `.env` file at `instances/<name>/.env` and its own runtime config files under `instances/<name>/config/`.
 
 Toggle services on/off:
 
@@ -100,6 +101,18 @@ Toggle services on/off:
 PHP_ENABLED=true
 MYSQL_ENABLED=true
 PHPMYADMIN_ENABLED=false   # disable phpMyAdmin
+```
+
+App access:
+
+```env
+APP_PORT=8000
+```
+
+Then open:
+
+```text
+http://localhost:8000
 ```
 
 Change versions:
@@ -117,6 +130,16 @@ WORKSPACE_UID=1001
 WORKSPACE_GID=1001
 ```
 
+Per-instance runtime config files are created automatically from the versioned defaults in `config/`:
+
+```text
+instances/<name>/config/nginx/default.conf
+instances/<name>/config/php/php.ini
+instances/<name>/config/mysql/my.cnf
+```
+
+That means one instance can change PHP, MySQL, or Nginx settings without affecting the others.
+
 ---
 
 ## Project Structure
@@ -128,16 +151,22 @@ ocompose/
 ├── instances/                  # Per-instance data & config
 │   ├── client-a/
 │   │   ├── .env
+│   │   ├── config/
+│   │   │   ├── nginx/default.conf
+│   │   │   ├── php/php.ini
+│   │   │   └── mysql/my.cnf
 │   │   └── www/
 │   └── blog/
 │       ├── .env
+│       ├── config/
 │       └── www/
 ├── services/
 │   ├── workspace/Dockerfile    # Base OS + Git (mandatory)
 │   └── php/Dockerfile          # PHP-FPM + Composer
 ├── config/
-│   ├── php/php.ini
-│   └── mysql/my.cnf
+│   ├── nginx/default.conf      # Default Nginx template copied into instances
+│   ├── php/php.ini             # Default PHP template copied into instances
+│   └── mysql/my.cnf            # Default MySQL template copied into instances
 ├── scripts/
 │   └── ocompose.sh             # Multi-instance CLI
 └── www/
