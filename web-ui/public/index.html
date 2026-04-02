@@ -89,9 +89,47 @@
                                     <span class="endpoint-label">SSH target</span>
                                     <p id="ssh-target" class="endpoint-value mb-0">Not available</p>
                                 </article>
+                                <article class="endpoint-card endpoint-card--action">
+                                    <span class="endpoint-label">Workspace console</span>
+                                    <a id="console-link" class="btn btn-light btn-sm rounded-pill mt-2 align-self-start" href="#console-panel">Open web console</a>
+                                </article>
                             </div>
                         </div>
                     </div>
+                </section>
+
+                <section id="console-panel" class="card-shell p-4 p-lg-5 mb-4">
+                    <div class="section-header mb-4">
+                        <div class="section-icon"><i class="bi bi-terminal-dash"></i></div>
+                        <div>
+                            <p class="eyebrow eyebrow-dark mb-2">Console</p>
+                            <h2 class="section-title mb-1">Run commands in the workspace</h2>
+                            <p id="console-subtitle" class="section-copy mb-0">Commands run inside the selected workspace container from its project root.</p>
+                        </div>
+                    </div>
+
+                    <form id="console-form" class="console-form">
+                        <label class="form-label label-caps" for="console-command">Command</label>
+                        <div class="console-toolbar mb-3">
+                            <textarea id="console-command" class="form-control console-input" rows="3" placeholder="pwd && ls -la"></textarea>
+                            <div class="console-buttons">
+                                <button id="console-run-button" class="btn btn-dark" type="submit"><i class="bi bi-play-fill me-2"></i>Run command</button>
+                                <button id="console-clear-button" class="btn btn-outline-dark" type="button">Clear output</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="console-shortcuts mb-3">
+                        <button class="btn btn-outline-dark btn-sm rounded-pill" type="button" data-console-command="pwd">pwd</button>
+                        <button class="btn btn-outline-dark btn-sm rounded-pill" type="button" data-console-command="ls -la">ls -la</button>
+                        <button class="btn btn-outline-dark btn-sm rounded-pill" type="button" data-console-command="git status">git status</button>
+                    </div>
+
+                    <div class="console-meta mb-3">
+                        <span id="console-cwd" class="console-badge">cwd: unavailable</span>
+                    </div>
+
+                    <pre id="console-output" class="console-output mb-0">Select a running instance to open its workspace console.</pre>
                 </section>
 
                 <form id="config-form">

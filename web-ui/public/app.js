@@ -13,12 +13,21 @@ const messageBar = document.querySelector('#message-bar');
 const appLink = document.querySelector('#app-link');
 const pmaLink = document.querySelector('#pma-link');
 const sshTarget = document.querySelector('#ssh-target');
+const consoleLink = document.querySelector('#console-link');
 const heroAppPort = document.querySelector('#hero-app-port');
 const heroMysqlPort = document.querySelector('#hero-mysql-port');
 const heroSshPort = document.querySelector('#hero-ssh-port');
 const refreshButton = document.querySelector('#refresh-button');
 const logoutButton = document.querySelector('#logout-button');
 const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
+const consoleForm = document.querySelector('#console-form');
+const consoleCommand = document.querySelector('#console-command');
+const consoleRunButton = document.querySelector('#console-run-button');
+const consoleClearButton = document.querySelector('#console-clear-button');
+const consoleOutput = document.querySelector('#console-output');
+const consoleSubtitle = document.querySelector('#console-subtitle');
+const consoleCwd = document.querySelector('#console-cwd');
+const consoleShortcutButtons = Array.from(document.querySelectorAll('[data-console-command]'));
 
 const fieldNames = [
     'WORKSPACE_USER',
@@ -44,6 +53,18 @@ const fieldNames = [
 function setMessage(text, isError = false) {
     messageBar.textContent = text;
     messageBar.classList.toggle('error', isError);
+}
+
+function setConsoleOutput(text) {
+    consoleOutput.textContent = text;
+    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+}
+
+function appendConsoleOutput(text) {
+    const nextText = consoleOutput.textContent.trim()
+        ? `${consoleOutput.textContent.replace(/\s+$/g, '')}\n\n${text}`
+        : text;
+    setConsoleOutput(nextText);
 }
 
 async function apiRequest(path, options = {}) {
@@ -82,9 +103,48 @@ function updateEndpoints(instance) {
     pmaLink.style.pointerEvents = pmaUrl ? 'auto' : 'none';
 
     sshTarget.textContent = sshUrl || 'Not available';
+    consoleLink.classList.toggle('disabled', !instance);
     heroAppPort.textContent = instance?.config?.APP_PORT || '-';
     heroMysqlPort.textContent = instance?.config?.MYSQL_PORT || '-';
     heroSshPort.textContent = instance?.config?.WORKSPACE_SSH_PORT || '-';
+}
+
+function setConsoleEnabled(enabled) {
+    consoleCommand.disabled = !enabled;
+    consoleRunButton.disabled = !enabled;
+    consoleShortcutButtons.forEach((button) => {
+        button.disabled = !enabled;
+    });
+}
+
+function updateConsoleState(instance) {
+    if (!instance) {
+        setConsoleEnabled(false);
+        consoleSubtitle.textContent = 'Commands run inside the selected workspace container from its project root.';
+        consoleCwd.textContent = 'cwd: unavailable';
+        setConsoleOutput('Select a running instance to open its workspace console.');
+        return;
+    }
+
+    const workspaceUser = instance.config?.WORKSPACE_USER || 'developer';
+    const cwd = `/home/${workspaceUser}/workspace`;
+    consoleCwd.textContent = `cwd: ${cwd}`;
+
+    if (instance.status !== 'running') {
+        setConsoleEnabled(false);
+        consoleSubtitle.textContent = 'Start the instance first. Commands only run against a live workspace container.';
+        setConsoleOutput(`Instance ${instance.name} is stopped. Start it to use the web console.`);
+        return;
+    }
+
+    setConsoleEnabled(true);
+    consoleSubtitle.textContent = `Commands run inside ${instance.name}_workspace from ${cwd}.`;
+
+    if (!consoleOutput.dataset.instanceName || consoleOutput.dataset.instanceName !== instance.name) {
+        setConsoleOutput(`Connected to ${instance.name}. Run a command in the workspace container.`);
+    }
+
+    consoleOutput.dataset.instanceName = instance.name;
 }
 
 function setFormEnabled(enabled) {
@@ -102,6 +162,7 @@ function fillForm(instance) {
         instanceSubtitle.textContent = 'Create or select an instance to unlock configuration. Until then, the editor stays intentionally locked.';
         statusChip.textContent = 'idle';
         statusChip.className = 'status-chip idle';
+        updateConsoleState(null);
         return;
     }
 
@@ -125,6 +186,7 @@ function fillForm(instance) {
     statusChip.textContent = instance.status;
     statusChip.className = `status-chip ${instance.status}`;
     updateEndpoints(instance);
+    updateConsoleState(instance);
 }
 
 function renderInstances() {
@@ -295,6 +357,69 @@ refreshButton.addEventListener('click', async () => {
     }
 });
 
+consoleShortcutButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+        consoleCommand.value = button.dataset.consoleCommand || '';
+        consoleCommand.focus();
+    });
+});
+
+consoleClearButton.addEventListener('click', () => {
+    const instance = getSelectedInstance();
+    if (!instance) {
+        setConsoleOutput('Select a running instance to open its workspace console.');
+        return;
+    }
+
+    if (instance.status !== 'running') {
+        setConsoleOutput(`Instance ${instance.name} is stopped. Start it to use the web console.`);
+        return;
+    }
+
+    setConsoleOutput(`Connected to ${instance.name}. Run a command in the workspace container.`);
+});
+
+consoleForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const instance = getSelectedInstance();
+
+    if (!instance) {
+        setMessage('Select an instance first.', true);
+        return;
+    }
+
+    const command = consoleCommand.value.trim();
+    if (!command) {
+        setMessage('Enter a command first.', true);
+        return;
+    }
+
+    try {
+        consoleRunButton.disabled = true;
+        setMessage(`Running command in ${instance.name}...`);
+        const payload = await apiRequest(`/api/instances/${instance.name}/console/execute`, {
+            method: 'POST',
+            body: JSON.stringify({ command }),
+        });
+
+        const chunks = [
+            `$ ${command}`,
+            payload.stdout || '',
+            payload.stderr ? `[stderr]\n${payload.stderr}` : '',
+            `[exit ${payload.exitCode}]`,
+        ].filter(Boolean);
+
+        appendConsoleOutput(chunks.join('\n'));
+        consoleCwd.textContent = `cwd: ${payload.cwd || consoleCwd.textContent.replace(/^cwd:\s*/, '')}`;
+        setMessage(payload.exitCode === 0 ? `Command completed in ${instance.name}.` : `Command exited with code ${payload.exitCode} in ${instance.name}.`, payload.exitCode !== 0);
+    } catch (error) {
+        setMessage(error.message, true);
+        appendConsoleOutput(`$ ${command}\n[error]\n${error.message}`);
+    } finally {
+        consoleRunButton.disabled = false;
+    }
+});
+
 logoutButton.addEventListener('click', async () => {
     try {
         await apiRequest('/api/auth/logout', {
@@ -309,6 +434,7 @@ logoutButton.addEventListener('click', async () => {
 (async () => {
     try {
         setFormEnabled(false);
+        setConsoleEnabled(false);
         await refreshInstances();
         setMessage(state.instances.length ? 'Select an instance to unlock editing.' : 'Create your first instance to unlock the editor.');
     } catch (error) {

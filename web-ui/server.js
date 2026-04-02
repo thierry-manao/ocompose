@@ -309,6 +309,15 @@ function buildInstanceSummary(instanceName, config, runningContainers) {
     };
 }
 
+function getWorkspaceContainerName(instanceName) {
+    return `${instanceName}_workspace`;
+}
+
+function getWorkspaceDirectory(config) {
+    const workspaceUser = normalizeValue(config.WORKSPACE_USER) || 'developer';
+    return `/home/${workspaceUser}/workspace`;
+}
+
 function validateInstanceName(instanceName) {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(instanceName || '')) {
         throw new Error('Instance names may only contain letters, numbers, hyphens, and underscores.');
@@ -356,6 +365,63 @@ async function runOcompose(args) {
         maxBuffer: 1024 * 1024,
         env: process.env,
     });
+}
+
+async function runWorkspaceCommand(instanceName, command) {
+    const normalizedCommand = normalizeValue(command);
+    if (!normalizedCommand) {
+        throw new Error('A command is required.');
+    }
+
+    const config = await readResolvedInstanceConfig(instanceName);
+    const runningContainers = await getRunningContainers();
+    const containerName = getWorkspaceContainerName(instanceName);
+
+    if (!runningContainers.has(containerName)) {
+        throw new Error(`Instance '${instanceName}' is not running.`);
+    }
+
+    const workspaceDir = getWorkspaceDirectory(config);
+
+    try {
+        const result = await execFileAsync('docker', [
+            'exec',
+            '-i',
+            '-w',
+            workspaceDir,
+            containerName,
+            'bash',
+            '-lc',
+            normalizedCommand,
+        ], {
+            cwd: PROJECT_DIR,
+            maxBuffer: 1024 * 1024 * 4,
+        });
+
+        return {
+            ok: true,
+            exitCode: 0,
+            stdout: result.stdout || '',
+            stderr: result.stderr || '',
+            cwd: workspaceDir,
+        };
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            throw new Error('Docker CLI is not available on the host.');
+        }
+
+        if (typeof error.code === 'number') {
+            return {
+                ok: false,
+                exitCode: error.code,
+                stdout: error.stdout || '',
+                stderr: error.stderr || '',
+                cwd: workspaceDir,
+            };
+        }
+
+        throw error;
+    }
 }
 
 async function getInstance(instanceName) {
@@ -539,6 +605,27 @@ async function handleInstanceApi(request, response, url) {
             output: result.stdout || result.stderr || '',
             instance: await getInstance(instanceName),
         });
+        return true;
+    }
+
+    if (pathParts.length === 5 && pathParts[0] === 'api' && pathParts[1] === 'instances' && pathParts[3] === 'console' && pathParts[4] === 'execute') {
+        const instanceName = pathParts[2];
+        validateInstanceName(instanceName);
+
+        if (request.method !== 'POST') {
+            sendJson(response, 405, { error: 'Method not allowed.' });
+            return true;
+        }
+
+        const body = await readJsonBody(request);
+        const command = normalizeValue(body.command);
+        if (!command) {
+            sendJson(response, 400, { error: 'A command is required.' });
+            return true;
+        }
+
+        const result = await runWorkspaceCommand(instanceName, command);
+        sendJson(response, 200, result);
         return true;
     }
 
