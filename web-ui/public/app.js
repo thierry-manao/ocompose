@@ -16,8 +16,8 @@ const sshTarget = document.querySelector('#ssh-target');
 const heroAppPort = document.querySelector('#hero-app-port');
 const heroMysqlPort = document.querySelector('#hero-mysql-port');
 const heroSshPort = document.querySelector('#hero-ssh-port');
-const logoutButton = document.querySelector('#logout-button');
 const refreshButton = document.querySelector('#refresh-button');
+const logoutButton = document.querySelector('#logout-button');
 const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
 
 const fieldNames = [
@@ -68,10 +68,10 @@ function getSelectedInstance() {
     return state.instances.find((instance) => instance.name === state.selectedInstanceName) || null;
 }
 
-function updateLinks(instance) {
-    const appUrl = instance?.urls?.app;
-    const pmaUrl = instance?.urls?.phpmyadmin;
-    const sshUrl = instance?.urls?.ssh;
+function updateEndpoints(instance) {
+    const appUrl = instance?.urls?.app || null;
+    const pmaUrl = instance?.urls?.phpmyadmin || null;
+    const sshUrl = instance?.urls?.ssh || null;
 
     appLink.textContent = appUrl || 'Not available';
     appLink.href = appUrl || '#';
@@ -97,12 +97,11 @@ function fillForm(instance) {
     if (!instance) {
         form.reset();
         setFormEnabled(false);
-        updateLinks(null);
+        updateEndpoints(null);
         instanceTitle.textContent = 'Select an instance';
         instanceSubtitle.textContent = 'Create or select an instance to unlock configuration. Until then, the editor stays intentionally locked.';
         statusChip.textContent = 'idle';
         statusChip.className = 'status-chip idle';
-        setMessage('Create or select an instance to unlock the configuration form.');
         return;
     }
 
@@ -122,19 +121,19 @@ function fillForm(instance) {
     });
 
     instanceTitle.textContent = instance.name;
-    instanceSubtitle.textContent = 'Save changes to rewrite the instance .env file. Start or restart afterward to apply container changes.';
+    instanceSubtitle.textContent = 'These fields edit the same `.env` file used by the CLI and Docker Compose.';
     statusChip.textContent = instance.status;
     statusChip.className = `status-chip ${instance.status}`;
-    updateLinks(instance);
+    updateEndpoints(instance);
 }
 
 function renderInstances() {
     instanceList.innerHTML = '';
 
     if (state.instances.length === 0) {
-        const empty = document.createElement('p');
-        empty.className = 'text-secondary small mb-0';
-        empty.textContent = 'No instances yet. Create one from the panel above.';
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'No instances yet. Create one to begin.';
         instanceList.appendChild(empty);
         fillForm(null);
         return;
@@ -144,24 +143,24 @@ function renderInstances() {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `instance-card${instance.name === state.selectedInstanceName ? ' active' : ''}`;
-        const appPort = instance.config.APP_PORT || '-';
-        const sshPort = instance.config.WORKSPACE_SSH_PORT || '-';
         button.innerHTML = `
-            <div class="instance-card-header">
-                <strong class="instance-card-name">${instance.name}</strong>
-                <span class="instance-status-pill ${instance.status}">${instance.status}</span>
+            <div class="instance-card__head">
+                <strong class="instance-card__name">${instance.name}</strong>
+                <span class="instance-card__status ${instance.status}">${instance.status}</span>
             </div>
-            <div class="instance-card-meta">
-                <span class="meta-pill"><i class="bi bi-globe2"></i> app ${appPort}</span>
-                <span class="meta-pill"><i class="bi bi-terminal"></i> ssh ${sshPort}</span>
+            <div class="instance-card__meta">
+                <span><i class="bi bi-globe2"></i> ${instance.config.APP_PORT || '-'}</span>
+                <span><i class="bi bi-terminal"></i> ${instance.config.WORKSPACE_SSH_PORT || '-'}</span>
             </div>
         `;
+
         button.addEventListener('click', () => {
             state.selectedInstanceName = instance.name;
             renderInstances();
             fillForm(instance);
             setMessage(`Loaded ${instance.name}.`);
         });
+
         instanceList.appendChild(button);
     });
 
@@ -186,6 +185,7 @@ async function refreshInstances(preserveSelection = true) {
 
 function collectFormData() {
     const config = {};
+
     fieldNames.forEach((fieldName) => {
         const element = form.elements.namedItem(fieldName);
         if (!element) {
@@ -199,6 +199,7 @@ function collectFormData() {
 
         config[fieldName] = element.value.trim();
     });
+
     return config;
 }
 
@@ -206,6 +207,7 @@ createForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const formData = new FormData(createForm);
     const name = String(formData.get('name') || '').trim();
+
     if (!name) {
         setMessage('Enter an instance name first.', true);
         return;
@@ -221,7 +223,7 @@ createForm.addEventListener('submit', async (event) => {
         await refreshInstances(false);
         state.selectedInstanceName = payload.instance.name;
         renderInstances();
-        setMessage(`Created ${payload.instance.name}. Adjust settings, then start it.`);
+        setMessage(`Created ${payload.instance.name}.`);
     } catch (error) {
         setMessage(error.message, true);
     }
@@ -230,6 +232,7 @@ createForm.addEventListener('submit', async (event) => {
 form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const instance = getSelectedInstance();
+
     if (!instance) {
         setMessage('Select an instance before saving.', true);
         return;
@@ -242,7 +245,7 @@ form.addEventListener('submit', async (event) => {
             body: JSON.stringify({ config: collectFormData() }),
         });
         await refreshInstances();
-        setMessage(`Saved ${instance.name}. Restart the stack if container settings changed.`);
+        setMessage(`Saved ${instance.name}. Restart the stack if you changed runtime settings.`);
     } catch (error) {
         setMessage(error.message, true);
     }
@@ -286,7 +289,7 @@ refreshButton.addEventListener('click', async () => {
     try {
         setMessage('Refreshing instances...');
         await refreshInstances();
-        setMessage('Instance list refreshed.');
+        setMessage('Instances refreshed.');
     } catch (error) {
         setMessage(error.message, true);
     }
@@ -294,7 +297,6 @@ refreshButton.addEventListener('click', async () => {
 
 logoutButton.addEventListener('click', async () => {
     try {
-        setMessage('Signing out...');
         await apiRequest('/api/auth/logout', {
             method: 'POST',
         });
@@ -308,7 +310,7 @@ logoutButton.addEventListener('click', async () => {
     try {
         setFormEnabled(false);
         await refreshInstances();
-        setMessage(state.instances.length ? 'Select an instance to unlock editing.' : 'Create your first instance to unlock the configuration form.');
+        setMessage(state.instances.length ? 'Select an instance to unlock editing.' : 'Create your first instance to unlock the editor.');
     } catch (error) {
         setMessage(error.message, true);
     }
