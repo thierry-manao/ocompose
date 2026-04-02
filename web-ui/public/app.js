@@ -1,6 +1,10 @@
 const state = {
     instances: [],
     selectedInstanceName: null,
+    consoleSessionId: null,
+    consoleCursor: 0,
+    consoleInstanceName: null,
+    consolePollTimer: null,
 };
 
 const form = document.querySelector('#config-form');
@@ -27,6 +31,7 @@ const consoleClearButton = document.querySelector('#console-clear-button');
 const consoleOutput = document.querySelector('#console-output');
 const consoleSubtitle = document.querySelector('#console-subtitle');
 const consoleCwd = document.querySelector('#console-cwd');
+const consoleStatus = document.querySelector('#console-status');
 const consoleShortcutButtons = Array.from(document.querySelectorAll('[data-console-command]'));
 
 const fieldNames = [
@@ -65,6 +70,10 @@ function appendConsoleOutput(text) {
         ? `${consoleOutput.textContent.replace(/\s+$/g, '')}\n\n${text}`
         : text;
     setConsoleOutput(nextText);
+}
+
+function setConsoleStatus(text) {
+    consoleStatus.textContent = text;
 }
 
 async function apiRequest(path, options = {}) {
@@ -112,16 +121,114 @@ function updateEndpoints(instance) {
 function setConsoleEnabled(enabled) {
     consoleCommand.disabled = !enabled;
     consoleRunButton.disabled = !enabled;
+    consoleClearButton.disabled = !enabled;
     consoleShortcutButtons.forEach((button) => {
         button.disabled = !enabled;
     });
 }
 
+function stopConsolePolling() {
+    if (state.consolePollTimer) {
+        window.clearTimeout(state.consolePollTimer);
+        state.consolePollTimer = null;
+    }
+}
+
+async function closeConsoleSession() {
+    if (!state.consoleSessionId || !state.consoleInstanceName) {
+        state.consoleSessionId = null;
+        state.consoleCursor = 0;
+        state.consoleInstanceName = null;
+        return;
+    }
+
+    stopConsolePolling();
+
+    try {
+        await apiRequest(`/api/instances/${state.consoleInstanceName}/console/session?sessionId=${encodeURIComponent(state.consoleSessionId)}`, {
+            method: 'DELETE',
+        });
+    } catch (error) {
+        // Ignore cleanup failures when switching instances.
+    }
+
+    state.consoleSessionId = null;
+    state.consoleCursor = 0;
+    state.consoleInstanceName = null;
+}
+
+async function pollConsoleOutput() {
+    const instanceName = state.consoleInstanceName;
+    const sessionId = state.consoleSessionId;
+
+    if (!instanceName || !sessionId) {
+        return;
+    }
+
+    try {
+        const payload = await apiRequest(`/api/instances/${instanceName}/console/session?sessionId=${encodeURIComponent(sessionId)}&cursor=${state.consoleCursor}`);
+
+        if (state.consoleSessionId !== payload.sessionId) {
+            return;
+        }
+
+        if (payload.output) {
+            appendConsoleOutput(payload.output.replace(/\s+$/g, ''));
+        }
+
+        state.consoleCursor = payload.cursor;
+        consoleCwd.textContent = `cwd: ${payload.cwd || 'unavailable'}`;
+        setConsoleStatus(payload.closed ? 'session: closed' : payload.busy ? 'session: busy' : 'session: ready');
+
+        if (!payload.closed && state.consoleSessionId === payload.sessionId) {
+            state.consolePollTimer = window.setTimeout(pollConsoleOutput, 800);
+            return;
+        }
+
+        state.consoleSessionId = null;
+    } catch (error) {
+        setConsoleStatus('session: offline');
+        setMessage(error.message, true);
+    }
+}
+
+async function ensureConsoleSession(instance) {
+    if (!instance || instance.status !== 'running') {
+        if (state.consoleSessionId) {
+            await closeConsoleSession();
+        }
+        return;
+    }
+
+    if (state.consoleSessionId && state.consoleInstanceName === instance.name) {
+        return;
+    }
+
+    if (state.consoleSessionId && state.consoleInstanceName !== instance.name) {
+        await closeConsoleSession();
+    }
+
+    const payload = await apiRequest(`/api/instances/${instance.name}/console/session`, {
+        method: 'POST',
+    });
+
+    state.consoleSessionId = payload.sessionId;
+    state.consoleCursor = payload.cursor;
+    state.consoleInstanceName = instance.name;
+    setConsoleStatus('session: ready');
+    consoleCwd.textContent = `cwd: ${payload.cwd || 'unavailable'}`;
+    setConsoleOutput(`Connected to ${instance.name}. State is preserved between commands.`);
+    stopConsolePolling();
+    state.consolePollTimer = window.setTimeout(pollConsoleOutput, 800);
+}
+
 function updateConsoleState(instance) {
     if (!instance) {
+        stopConsolePolling();
         setConsoleEnabled(false);
         consoleSubtitle.textContent = 'Commands run inside the selected workspace container from its project root.';
         consoleCwd.textContent = 'cwd: unavailable';
+        setConsoleStatus('session: offline');
         setConsoleOutput('Select a running instance to open its workspace console.');
         return;
     }
@@ -131,20 +238,28 @@ function updateConsoleState(instance) {
     consoleCwd.textContent = `cwd: ${cwd}`;
 
     if (instance.status !== 'running') {
+        stopConsolePolling();
         setConsoleEnabled(false);
         consoleSubtitle.textContent = 'Start the instance first. Commands only run against a live workspace container.';
+        setConsoleStatus('session: offline');
         setConsoleOutput(`Instance ${instance.name} is stopped. Start it to use the web console.`);
         return;
     }
 
     setConsoleEnabled(true);
     consoleSubtitle.textContent = `Commands run inside ${instance.name}_workspace from ${cwd}.`;
+    setConsoleStatus(state.consoleSessionId && state.consoleInstanceName === instance.name ? 'session: ready' : 'session: connecting');
 
     if (!consoleOutput.dataset.instanceName || consoleOutput.dataset.instanceName !== instance.name) {
-        setConsoleOutput(`Connected to ${instance.name}. Run a command in the workspace container.`);
+        setConsoleOutput(`Connecting to ${instance.name}...`);
     }
 
     consoleOutput.dataset.instanceName = instance.name;
+    ensureConsoleSession(instance).catch((error) => {
+        setConsoleStatus('session: offline');
+        setMessage(error.message, true);
+        setConsoleOutput(error.message);
+    });
 }
 
 function setFormEnabled(enabled) {
@@ -376,7 +491,7 @@ consoleClearButton.addEventListener('click', () => {
         return;
     }
 
-    setConsoleOutput(`Connected to ${instance.name}. Run a command in the workspace container.`);
+    setConsoleOutput(`Connected to ${instance.name}. State is preserved between commands.`);
 });
 
 consoleForm.addEventListener('submit', async (event) => {
@@ -394,27 +509,28 @@ consoleForm.addEventListener('submit', async (event) => {
         return;
     }
 
+    if (!state.consoleSessionId || state.consoleInstanceName !== instance.name) {
+        setMessage('Console session is not ready yet.', true);
+        return;
+    }
+
     try {
         consoleRunButton.disabled = true;
-        setMessage(`Running command in ${instance.name}...`);
-        const payload = await apiRequest(`/api/instances/${instance.name}/console/execute`, {
+        setConsoleStatus('session: busy');
+        appendConsoleOutput(`$ ${command}`);
+        consoleCommand.value = '';
+        setMessage(`Sending command to ${instance.name}...`);
+        await apiRequest(`/api/instances/${instance.name}/console/input`, {
             method: 'POST',
-            body: JSON.stringify({ command }),
+            body: JSON.stringify({ sessionId: state.consoleSessionId, input: command }),
         });
-
-        const chunks = [
-            `$ ${command}`,
-            payload.stdout || '',
-            payload.stderr ? `[stderr]\n${payload.stderr}` : '',
-            `[exit ${payload.exitCode}]`,
-        ].filter(Boolean);
-
-        appendConsoleOutput(chunks.join('\n'));
-        consoleCwd.textContent = `cwd: ${payload.cwd || consoleCwd.textContent.replace(/^cwd:\s*/, '')}`;
-        setMessage(payload.exitCode === 0 ? `Command completed in ${instance.name}.` : `Command exited with code ${payload.exitCode} in ${instance.name}.`, payload.exitCode !== 0);
+        stopConsolePolling();
+        state.consolePollTimer = window.setTimeout(pollConsoleOutput, 150);
+        setMessage(`Command sent to ${instance.name}.`);
     } catch (error) {
         setMessage(error.message, true);
-        appendConsoleOutput(`$ ${command}\n[error]\n${error.message}`);
+        appendConsoleOutput(`[error]\n${error.message}`);
+        setConsoleStatus('session: offline');
     } finally {
         consoleRunButton.disabled = false;
     }
@@ -435,9 +551,14 @@ logoutButton.addEventListener('click', async () => {
     try {
         setFormEnabled(false);
         setConsoleEnabled(false);
+        setConsoleStatus('session: offline');
         await refreshInstances();
         setMessage(state.instances.length ? 'Select an instance to unlock editing.' : 'Create your first instance to unlock the editor.');
     } catch (error) {
         setMessage(error.message, true);
     }
 })();
+
+window.addEventListener('beforeunload', () => {
+    stopConsolePolling();
+});

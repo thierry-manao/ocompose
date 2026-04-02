@@ -132,7 +132,7 @@ Commands:
 
 The project now includes a small admin server for instance management. It edits the same `instances/<name>/.env` files used by the CLI, and it can also run `init`, `up`, `down`, `restart`, and `destroy` for you.
 
-It also includes a browser console for the workspace container of a running instance. Commands are executed with `docker exec` from the workspace project root.
+It also includes a browser console for the workspace container of a running instance. The console keeps a live shell session in the browser, so commands such as `cd`, `pwd`, and `git status` keep state between submissions.
 
 The admin UI is protected by a login. Credentials are generated on first start and stored in `.ocompose-ui.auth`, or you can provide them explicitly when starting the UI.
 
@@ -173,6 +173,7 @@ Web console notes:
 - Available only when the instance is running
 - Commands run inside <instance>_workspace
 - Working directory defaults to /home/<WORKSPACE_USER>/workspace
+- The shell session is persistent while the page stays open
 ```
 
 ---

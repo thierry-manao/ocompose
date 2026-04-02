@@ -32,6 +32,10 @@ const AUTH_PASSWORD = String(process.env.OCOMPOSE_UI_PASSWORD || '').trim();
 const SESSION_COOKIE = 'ocompose_ui_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 const sessions = new Map();
+const consoleSessions = new Map();
+const CONSOLE_SESSION_TTL_MS = 1000 * 60 * 30;
+const CONSOLE_BUFFER_LIMIT = 200000;
+const CONSOLE_BUFFER_TRIM_TO = 150000;
 
 const MIME_TYPES = {
     '.css': 'text/css; charset=utf-8',
@@ -318,6 +322,177 @@ function getWorkspaceDirectory(config) {
     return `/home/${workspaceUser}/workspace`;
 }
 
+function appendConsoleOutput(consoleSession, text) {
+    if (!text) {
+        return;
+    }
+
+    consoleSession.output += text;
+    if (consoleSession.output.length > CONSOLE_BUFFER_LIMIT) {
+        const trimLength = consoleSession.output.length - CONSOLE_BUFFER_TRIM_TO;
+        consoleSession.output = consoleSession.output.slice(trimLength);
+        consoleSession.baseCursor += trimLength;
+    }
+}
+
+function touchConsoleSession(consoleSession) {
+    consoleSession.lastActivityAt = Date.now();
+}
+
+function removeConsoleSession(consoleSession) {
+    consoleSessions.delete(consoleSession.id);
+}
+
+function closeConsoleSession(consoleSession) {
+    if (!consoleSession) {
+        return;
+    }
+
+    if (!consoleSession.closed) {
+        consoleSession.closed = true;
+        consoleSession.busy = false;
+        try {
+            consoleSession.process.stdin.write('__OCOMPOSE_EXIT__\n');
+        } catch (error) {
+            // Ignore write failures during shutdown.
+        }
+        consoleSession.process.kill();
+    }
+
+    removeConsoleSession(consoleSession);
+}
+
+function cleanupConsoleSessions() {
+    const now = Date.now();
+    for (const consoleSession of consoleSessions.values()) {
+        if (consoleSession.closed || consoleSession.lastActivityAt + CONSOLE_SESSION_TTL_MS <= now) {
+            closeConsoleSession(consoleSession);
+        }
+    }
+}
+
+function getConsoleSession(sessionId, ownerToken, instanceName) {
+    const consoleSession = consoleSessions.get(sessionId);
+    if (!consoleSession || consoleSession.ownerToken !== ownerToken || consoleSession.instanceName !== instanceName || consoleSession.closed) {
+        return null;
+    }
+
+    touchConsoleSession(consoleSession);
+    return consoleSession;
+}
+
+function flushConsoleStream(consoleSession, streamName) {
+    const bufferKey = `${streamName}Buffer`;
+    const markerPrefix = `${consoleSession.marker}:`;
+    let buffer = consoleSession[bufferKey];
+    let newlineIndex = buffer.indexOf('\n');
+
+    while (newlineIndex !== -1) {
+        const rawLine = buffer.slice(0, newlineIndex);
+        const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+
+        if (line.startsWith(`${markerPrefix}READY:`)) {
+            consoleSession.cwd = line.slice(`${markerPrefix}READY:`.length) || consoleSession.cwd;
+        } else if (line.startsWith(`${markerPrefix}END:`)) {
+            const payload = line.slice(`${markerPrefix}END:`.length);
+            const separatorIndex = payload.indexOf(':');
+            if (separatorIndex !== -1) {
+                const exitCode = Number.parseInt(payload.slice(0, separatorIndex), 10);
+                const cwd = payload.slice(separatorIndex + 1);
+                consoleSession.lastExitCode = Number.isNaN(exitCode) ? null : exitCode;
+                consoleSession.cwd = cwd || consoleSession.cwd;
+            }
+            consoleSession.busy = false;
+        } else {
+            appendConsoleOutput(consoleSession, `${line}\n`);
+        }
+
+        buffer = buffer.slice(newlineIndex + 1);
+        newlineIndex = buffer.indexOf('\n');
+    }
+
+    consoleSession[bufferKey] = buffer;
+}
+
+async function createConsoleSession(instanceName, ownerToken) {
+    const config = await readResolvedInstanceConfig(instanceName);
+    const runningContainers = await getRunningContainers();
+    const containerName = getWorkspaceContainerName(instanceName);
+
+    if (!runningContainers.has(containerName)) {
+        throw new Error(`Instance '${instanceName}' is not running.`);
+    }
+
+    for (const existingConsoleSession of consoleSessions.values()) {
+        if (existingConsoleSession.ownerToken === ownerToken && existingConsoleSession.instanceName === instanceName) {
+            closeConsoleSession(existingConsoleSession);
+        }
+    }
+
+    const workspaceDir = getWorkspaceDirectory(config);
+    const sessionId = crypto.randomUUID();
+    const marker = `__OCOMPOSE_CONSOLE_${sessionId}__`;
+    const consoleProcess = execFile('docker', [
+        'exec',
+        '-i',
+        containerName,
+        'bash',
+        '-lc',
+        `cd ${JSON.stringify(workspaceDir)} || exit 1; printf '${marker}:READY:%s\\n' "$PWD"; while IFS= read -r line; do if [ "$line" = '__OCOMPOSE_EXIT__' ]; then exit 0; fi; eval "$line"; status=$?; printf '${marker}:END:%s:%s\\n' "$status" "$PWD"; done`,
+    ], {
+        cwd: PROJECT_DIR,
+        maxBuffer: 1024 * 1024 * 4,
+    });
+
+    const consoleSession = {
+        id: sessionId,
+        ownerToken,
+        instanceName,
+        marker,
+        process: consoleProcess,
+        output: '',
+        baseCursor: 0,
+        stdoutBuffer: '',
+        stderrBuffer: '',
+        cwd: workspaceDir,
+        busy: false,
+        closed: false,
+        lastExitCode: null,
+        lastActivityAt: Date.now(),
+    };
+
+    consoleProcess.stdout.setEncoding('utf8');
+    consoleProcess.stderr.setEncoding('utf8');
+
+    consoleProcess.stdout.on('data', (chunk) => {
+        touchConsoleSession(consoleSession);
+        consoleSession.stdoutBuffer += chunk;
+        flushConsoleStream(consoleSession, 'stdout');
+    });
+
+    consoleProcess.stderr.on('data', (chunk) => {
+        touchConsoleSession(consoleSession);
+        consoleSession.stderrBuffer += chunk;
+        flushConsoleStream(consoleSession, 'stderr');
+    });
+
+    consoleProcess.on('exit', () => {
+        flushConsoleStream(consoleSession, 'stdout');
+        flushConsoleStream(consoleSession, 'stderr');
+        consoleSession.closed = true;
+        consoleSession.busy = false;
+    });
+
+    consoleProcess.on('error', (error) => {
+        appendConsoleOutput(consoleSession, `${error.message}\n`);
+        consoleSession.closed = true;
+        consoleSession.busy = false;
+    });
+
+    consoleSessions.set(sessionId, consoleSession);
+    return consoleSession;
+}
+
 function validateInstanceName(instanceName) {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(instanceName || '')) {
         throw new Error('Instance names may only contain letters, numbers, hyphens, and underscores.');
@@ -422,6 +597,25 @@ async function runWorkspaceCommand(instanceName, command) {
 
         throw error;
     }
+}
+
+function getConsoleSnapshot(consoleSession, cursorInput) {
+    const requestedCursor = Number.parseInt(String(cursorInput || consoleSession.baseCursor), 10);
+    const cursor = Number.isNaN(requestedCursor)
+        ? consoleSession.baseCursor
+        : Math.max(requestedCursor, consoleSession.baseCursor);
+    const sliceStart = cursor - consoleSession.baseCursor;
+    const output = consoleSession.output.slice(sliceStart);
+
+    return {
+        sessionId: consoleSession.id,
+        cursor: consoleSession.baseCursor + consoleSession.output.length,
+        output,
+        cwd: consoleSession.cwd,
+        busy: consoleSession.busy,
+        closed: consoleSession.closed,
+        lastExitCode: consoleSession.lastExitCode,
+    };
 }
 
 async function getInstance(instanceName) {
@@ -545,6 +739,7 @@ async function handleAuthApi(request, response, url) {
 
 async function handleInstanceApi(request, response, url) {
     const pathParts = url.pathname.split('/').filter(Boolean);
+    cleanupConsoleSessions();
 
     if (request.method === 'GET' && url.pathname === '/api/instances') {
         sendJson(response, 200, { instances: await listInstances() });
@@ -626,6 +821,85 @@ async function handleInstanceApi(request, response, url) {
 
         const result = await runWorkspaceCommand(instanceName, command);
         sendJson(response, 200, result);
+        return true;
+    }
+
+    if (pathParts.length === 5 && pathParts[0] === 'api' && pathParts[1] === 'instances' && pathParts[3] === 'console' && pathParts[4] === 'session') {
+        const instanceName = pathParts[2];
+        const session = getSession(request);
+        validateInstanceName(instanceName);
+
+        if (!session) {
+            sendJson(response, 401, { error: 'Authentication required.' });
+            return true;
+        }
+
+        if (request.method === 'POST') {
+            const consoleSession = await createConsoleSession(instanceName, session.token);
+            sendJson(response, 201, getConsoleSnapshot(consoleSession));
+            return true;
+        }
+
+        if (request.method === 'GET') {
+            const sessionId = normalizeValue(url.searchParams.get('sessionId'));
+            const consoleSession = getConsoleSession(sessionId, session.token, instanceName);
+            if (!consoleSession) {
+                sendJson(response, 404, { error: 'Console session not found.' });
+                return true;
+            }
+
+            sendJson(response, 200, getConsoleSnapshot(consoleSession, url.searchParams.get('cursor')));
+            return true;
+        }
+
+        if (request.method === 'DELETE') {
+            const sessionId = normalizeValue(url.searchParams.get('sessionId'));
+            const consoleSession = getConsoleSession(sessionId, session.token, instanceName);
+            if (!consoleSession) {
+                sendJson(response, 404, { error: 'Console session not found.' });
+                return true;
+            }
+
+            closeConsoleSession(consoleSession);
+            sendJson(response, 200, { ok: true });
+            return true;
+        }
+    }
+
+    if (pathParts.length === 5 && pathParts[0] === 'api' && pathParts[1] === 'instances' && pathParts[3] === 'console' && pathParts[4] === 'input') {
+        const instanceName = pathParts[2];
+        const session = getSession(request);
+        validateInstanceName(instanceName);
+
+        if (!session) {
+            sendJson(response, 401, { error: 'Authentication required.' });
+            return true;
+        }
+
+        if (request.method !== 'POST') {
+            sendJson(response, 405, { error: 'Method not allowed.' });
+            return true;
+        }
+
+        const body = await readJsonBody(request);
+        const sessionId = normalizeValue(body.sessionId);
+        const input = String(body.input || '');
+        const consoleSession = getConsoleSession(sessionId, session.token, instanceName);
+
+        if (!consoleSession) {
+            sendJson(response, 404, { error: 'Console session not found.' });
+            return true;
+        }
+
+        if (consoleSession.closed) {
+            sendJson(response, 409, { error: 'Console session is closed.' });
+            return true;
+        }
+
+        consoleSession.busy = true;
+        touchConsoleSession(consoleSession);
+        consoleSession.process.stdin.write(`${input.replace(/\r?\n/g, ' ')}\n`);
+        sendJson(response, 202, { ok: true, cwd: consoleSession.cwd });
         return true;
     }
 
