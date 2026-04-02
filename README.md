@@ -111,6 +111,13 @@ Optional custom port:
 ./scripts/ocompose.sh ui 9090
 ```
 
+The UI now starts in the background and writes its PID and logs to the project root. You can inspect or stop it with:
+
+```bash
+./scripts/ocompose.sh ui status
+./scripts/ocompose.sh ui stop
+```
+
 ---
 
 ## Configuration

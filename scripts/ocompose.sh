@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 INSTANCES_DIR="$PROJECT_DIR/instances"
+UI_PID_FILE="$PROJECT_DIR/.ocompose-ui.pid"
+UI_LOG_FILE="$PROJECT_DIR/.ocompose-ui.log"
 
 # ── Colors ──
 RED='\033[0;31m'
@@ -52,6 +54,23 @@ has_flag() {
         fi
     done
 
+    return 1
+}
+
+is_ui_running() {
+    if [[ ! -f "$UI_PID_FILE" ]]; then
+        return 1
+    fi
+
+    local pid
+    pid="$(tr -d '[:space:]' < "$UI_PID_FILE")"
+    [[ -z "$pid" ]] && return 1
+
+    if kill -0 "$pid" 2>/dev/null; then
+        return 0
+    fi
+
+    rm -f "$UI_PID_FILE"
     return 1
 }
 
@@ -167,15 +186,82 @@ cmd_init() {
 }
 
 cmd_ui() {
-    local port="${1:-${OCOMPOSE_UI_PORT:-8787}}"
+    local action="start"
+    local port="${OCOMPOSE_UI_PORT:-8787}"
+
+    if [[ $# -gt 0 ]]; then
+        case "$1" in
+            start|stop|status)
+                action="$1"
+                shift
+                ;;
+        esac
+    fi
+
+    if [[ $# -gt 0 ]]; then
+        port="$1"
+    fi
 
     if ! command -v node >/dev/null 2>&1; then
         echo -e "${RED}✗ Error: Node.js is required to run the web UI.${NC}"
         exit 1
     fi
 
-    echo -e "${CYAN}Launching ocompose web UI on http://localhost:${port}${NC}"
-    OCOMPOSE_UI_PORT="$port" node "$PROJECT_DIR/web-ui/server.js"
+    case "$action" in
+        start)
+            if is_ui_running; then
+                local current_pid
+                current_pid="$(tr -d '[:space:]' < "$UI_PID_FILE")"
+                echo -e "${YELLOW}⚠  ocompose web UI is already running (PID: ${current_pid}).${NC}"
+                echo -e "   URL:  http://localhost:${port}"
+                echo -e "   Stop: ./scripts/ocompose.sh ui stop"
+                return 0
+            fi
+
+            echo -e "${CYAN}Launching ocompose web UI in the background on http://localhost:${port}${NC}"
+            nohup env OCOMPOSE_UI_PORT="$port" node "$PROJECT_DIR/web-ui/server.js" > "$UI_LOG_FILE" 2>&1 &
+            local ui_pid=$!
+            echo "$ui_pid" > "$UI_PID_FILE"
+            sleep 1
+
+            if kill -0 "$ui_pid" 2>/dev/null; then
+                echo -e "${GREEN}✅ Web UI started.${NC}"
+                echo -e "   URL:  http://localhost:${port}"
+                echo -e "   PID:  ${ui_pid}"
+                echo -e "   Log:  $UI_LOG_FILE"
+                echo -e "   Stop: ./scripts/ocompose.sh ui stop"
+                return 0
+            fi
+
+            rm -f "$UI_PID_FILE"
+            echo -e "${RED}✗ Failed to start the web UI.${NC}"
+            [[ -f "$UI_LOG_FILE" ]] && tail -n 20 "$UI_LOG_FILE"
+            exit 1
+            ;;
+        stop)
+            if ! is_ui_running; then
+                echo -e "${YELLOW}⚠  ocompose web UI is not running.${NC}"
+                return 0
+            fi
+
+            local ui_pid
+            ui_pid="$(tr -d '[:space:]' < "$UI_PID_FILE")"
+            kill "$ui_pid" 2>/dev/null || true
+            rm -f "$UI_PID_FILE"
+            echo -e "${GREEN}✅ Web UI stopped.${NC}"
+            ;;
+        status)
+            if is_ui_running; then
+                local ui_pid
+                ui_pid="$(tr -d '[:space:]' < "$UI_PID_FILE")"
+                echo -e "${GREEN}✅ ocompose web UI is running.${NC}"
+                echo -e "   PID: ${ui_pid}"
+                echo -e "   Log: $UI_LOG_FILE"
+            else
+                echo -e "${YELLOW}⚠  ocompose web UI is not running.${NC}"
+            fi
+            ;;
+    esac
 }
 
 cmd_up() {
@@ -287,7 +373,9 @@ cmd_help() {
     echo ""
     echo "Usage: ocompose.sh <instance> <command> [options]"
     echo "       ocompose.sh list"
-    echo "       ocompose.sh ui [port]"
+    echo "       ocompose.sh ui [start] [port]"
+    echo "       ocompose.sh ui stop"
+    echo "       ocompose.sh ui status"
     echo ""
     echo "Commands:"
     echo "  init       Create a new instance"
@@ -299,7 +387,7 @@ cmd_help() {
     echo "  logs       Tail logs"
     echo "  destroy    Remove instance entirely"
     echo "  list       List all instances"
-    echo "  ui         Start the web admin UI"
+    echo "  ui         Manage the web admin UI"
     echo "  help       Show this help"
     echo ""
     echo "Examples:"
@@ -308,7 +396,8 @@ cmd_help() {
     echo "  ocompose.sh client-a shell      # SSH into workspace"
     echo "  ocompose.sh blog init           # Create another instance"
     echo "  ocompose.sh list                # See all instances"
-    echo "  ocompose.sh ui                  # Open the web admin"
+    echo "  ocompose.sh ui                  # Start the web admin in background"
+    echo "  ocompose.sh ui stop             # Stop the web admin"
     echo ""
 }
 
