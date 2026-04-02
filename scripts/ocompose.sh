@@ -32,6 +32,28 @@ normalize_env_file() {
     echo "$normalized_env_file"
 }
 
+copy_if_missing() {
+    local source_file="$1"
+    local target_file="$2"
+
+    if [[ ! -f "$target_file" && -f "$source_file" ]]; then
+        mkdir -p "$(dirname "$target_file")"
+        cp "$source_file" "$target_file"
+    fi
+}
+
+ensure_instance_files() {
+    local instance_dir="$INSTANCES_DIR/$INSTANCE"
+
+    mkdir -p "$instance_dir/www"
+    mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql"
+
+    copy_if_missing "$PROJECT_DIR/www/index.php" "$instance_dir/www/index.php"
+    copy_if_missing "$PROJECT_DIR/config/nginx/default.conf" "$instance_dir/config/nginx/default.conf"
+    copy_if_missing "$PROJECT_DIR/config/php/php.ini" "$instance_dir/config/php/php.ini"
+    copy_if_missing "$PROJECT_DIR/config/mysql/my.cnf" "$instance_dir/config/mysql/my.cnf"
+}
+
 # ── Load instance env ──
 load_instance_env() {
     local env_file="$INSTANCES_DIR/$INSTANCE/.env"
@@ -50,6 +72,8 @@ load_instance_env() {
     set +a
     rm -f "$normalized_env_file"
     export PROJECT_NAME="$INSTANCE"
+
+    ensure_instance_files
 }
 
 # ── Build active profiles ──
@@ -91,6 +115,7 @@ cmd_init() {
     fi
 
     mkdir -p "$instance_dir/www"
+    mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql"
 
     # Copy template and inject instance name
     sed "s/^PROJECT_NAME=.*/PROJECT_NAME=$INSTANCE/" \
@@ -102,6 +127,7 @@ cmd_init() {
     local offset=$(( (count - 1) * 10 ))
 
     sed -i.bak \
+        -e "s/^APP_PORT=.*/APP_PORT=$(( 8000 + offset ))/" \
         -e "s/^MYSQL_PORT=.*/MYSQL_PORT=$(( 3306 + offset ))/" \
         -e "s/^PHPMYADMIN_PORT=.*/PHPMYADMIN_PORT=$(( 8080 + offset ))/" \
         -e "s/^WORKSPACE_SSH_PORT=.*/WORKSPACE_SSH_PORT=$(( 2222 + offset ))/" \
@@ -109,13 +135,12 @@ cmd_init() {
     rm -f "$instance_dir/.env.bak"
 
     # Copy default index.php
-    if [[ -f "$PROJECT_DIR/www/index.php" ]]; then
-        cp "$PROJECT_DIR/www/index.php" "$instance_dir/www/index.php"
-    fi
+    ensure_instance_files
 
     echo -e "${GREEN}✅ Instance '$INSTANCE' created!${NC}"
     echo -e "   Config: $instance_dir/.env"
     echo -e "   Webroot: $instance_dir/www/"
+    echo -e "   Runtime config: $instance_dir/config/"
     echo ""
     echo -e "   ${CYAN}Edit the .env file, then run:${NC}"
     echo -e "   ./scripts/ocompose.sh $INSTANCE up"
@@ -129,6 +154,7 @@ cmd_up() {
     echo ""
     echo -e "${GREEN}✅ Instance '$INSTANCE' is running!${NC}"
     echo -e "   Shell:      ./scripts/ocompose.sh $INSTANCE shell"
+    [[ "${PHP_ENABLED:-false}" == "true" ]]        && echo -e "   App:        http://localhost:${APP_PORT:-8000}"
     [[ "${MYSQL_ENABLED:-false}" == "true" ]]      && echo -e "   MySQL:      localhost:${MYSQL_PORT:-3306}"
     [[ "${PHPMYADMIN_ENABLED:-false}" == "true" ]]  && echo -e "   phpMyAdmin: http://localhost:${PHPMYADMIN_PORT:-8080}"
 }
@@ -186,7 +212,7 @@ cmd_list() {
         return
     fi
 
-    printf "   ${BOLD}%-20s %-12s %-10s %-10s %-10s${NC}\n" "INSTANCE" "STATUS" "MYSQL" "PMA" "SSH"
+    printf "   ${BOLD}%-20s %-12s %-10s %-10s %-10s %-10s${NC}\n" "INSTANCE" "STATUS" "APP" "MYSQL" "PMA" "SSH"
     for dir in "$INSTANCES_DIR"/*/; do
         local name
         name=$(basename "$dir")
@@ -199,14 +225,19 @@ cmd_list() {
             status="${RED}stopped${NC}"
         fi
 
-        local mysql_port="-" pma_port="-" ssh_port="-"
+        local app_port="-" mysql_port="-" pma_port="-" ssh_port="-"
         if [[ -f "$env_file" ]]; then
+            app_port=$(grep "^APP_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
             mysql_port=$(grep "^MYSQL_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
             pma_port=$(grep "^PHPMYADMIN_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
             ssh_port=$(grep "^WORKSPACE_SSH_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
+
+            if [[ "$app_port" == "-" ]]; then
+                app_port="8000"
+            fi
         fi
 
-        printf "   %-20s %-22b %-10s %-10s %-10s\n" "$name" "$status" "$mysql_port" "$pma_port" "$ssh_port"
+        printf "   %-20s %-22b %-10s %-10s %-10s %-10s\n" "$name" "$status" "$app_port" "$mysql_port" "$pma_port" "$ssh_port"
     done
 }
 
