@@ -1,6 +1,7 @@
 const state = {
     instances: [],
     selectedInstanceName: null,
+    activeView: 'dashboard',
     consoleSessionId: null,
     consoleCursor: 0,
     consoleInstanceName: null,
@@ -24,6 +25,8 @@ const heroSshPort = document.querySelector('#hero-ssh-port');
 const refreshButton = document.querySelector('#refresh-button');
 const logoutButton = document.querySelector('#logout-button');
 const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
+const sectionNavButtons = Array.from(document.querySelectorAll('[data-view]'));
+const viewPanels = Array.from(document.querySelectorAll('[data-view-panel]'));
 const consoleForm = document.querySelector('#console-form');
 const consoleCommand = document.querySelector('#console-command');
 const consoleRunButton = document.querySelector('#console-run-button');
@@ -74,6 +77,23 @@ function appendConsoleOutput(text) {
 
 function setConsoleStatus(text) {
     consoleStatus.textContent = text;
+}
+
+function setActiveView(viewName) {
+    state.activeView = viewName;
+
+    sectionNavButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.view === viewName);
+    });
+
+    viewPanels.forEach((panel) => {
+        panel.classList.toggle('is-active', panel.dataset.viewPanel === viewName);
+    });
+
+    if (viewName === 'shell') {
+        updateConsoleState(getSelectedInstance());
+        consoleCommand.focus();
+    }
 }
 
 async function apiRequest(path, options = {}) {
@@ -201,6 +221,8 @@ async function ensureConsoleSession(instance) {
     }
 
     if (state.consoleSessionId && state.consoleInstanceName === instance.name) {
+        stopConsolePolling();
+        state.consolePollTimer = window.setTimeout(pollConsoleOutput, 150);
         return;
     }
 
@@ -236,6 +258,10 @@ function updateConsoleState(instance) {
     const workspaceUser = instance.config?.WORKSPACE_USER || 'developer';
     const cwd = `/home/${workspaceUser}/workspace`;
     consoleCwd.textContent = `cwd: ${cwd}`;
+
+    if (state.activeView !== 'shell') {
+        return;
+    }
 
     if (instance.status !== 'running') {
         stopConsolePolling();
@@ -472,6 +498,16 @@ refreshButton.addEventListener('click', async () => {
     }
 });
 
+sectionNavButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+        setActiveView(button.dataset.view);
+    });
+});
+
+consoleLink.addEventListener('click', () => {
+    setActiveView('shell');
+});
+
 consoleShortcutButtons.forEach((button) => {
     button.addEventListener('click', () => {
         consoleCommand.value = button.dataset.consoleCommand || '';
@@ -553,6 +589,7 @@ logoutButton.addEventListener('click', async () => {
         setConsoleEnabled(false);
         setConsoleStatus('session: offline');
         await refreshInstances();
+        setActiveView('dashboard');
         setMessage(state.instances.length ? 'Select an instance to unlock editing.' : 'Create your first instance to unlock the editor.');
     } catch (error) {
         setMessage(error.message, true);

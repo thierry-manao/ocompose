@@ -24,26 +24,25 @@
         </header>
 
         <div class="row g-4 align-items-start">
-            <aside class="col-12 col-xxl-4">
-                <section class="card-shell p-3 p-lg-4 mb-4">
-                    <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
-                        <div>
-                            <p class="eyebrow eyebrow-dark mb-2">Fleet</p>
-                            <h2 class="section-title mb-1">Instances</h2>
-                            <p class="section-copy mb-0">Pick one to unlock the editor.</p>
-                        </div>
-                        <button id="refresh-button" type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3">Refresh</button>
+            <aside class="col-12 col-xl-4 col-xxl-3">
+                <section class="card-shell p-3 p-lg-4 sidebar-shell">
+                    <div class="section-nav mb-4">
+                        <button type="button" class="section-nav__button active" data-view="dashboard"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></button>
+                        <button type="button" class="section-nav__button" data-view="instances"><i class="bi bi-boxes"></i><span>Instances</span></button>
+                        <button type="button" class="section-nav__button" data-view="settings"><i class="bi bi-sliders"></i><span>Settings</span></button>
+                        <button type="button" class="section-nav__button" data-view="shell"><i class="bi bi-terminal"></i><span>Shell</span></button>
                     </div>
 
-                    <form id="create-form" class="create-box mb-4">
-                        <label for="new-instance-name" class="form-label label-caps">New instance</label>
-                        <div class="input-group input-group-lg">
-                            <span class="input-group-text"><i class="bi bi-plus-circle"></i></span>
-                            <input id="new-instance-name" name="name" class="form-control" type="text" placeholder="client-a" autocomplete="off" required>
+                    <div class="sidebar-divider"></div>
+
+                    <div class="mb-4">
+                        <p class="eyebrow eyebrow-dark mb-2">Selected instance</p>
+                        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                            <h2 id="instance-title" class="sidebar-instance-title mb-0">Select an instance</h2>
+                            <span id="status-chip" class="status-chip idle">idle</span>
                         </div>
-                        <button class="btn btn-dark w-100 mt-3" type="submit">Create instance</button>
-                        <div class="form-text mt-2">Use letters, numbers, hyphens, or underscores.</div>
-                    </form>
+                        <p id="instance-subtitle" class="section-copy mb-0">Create or select an instance to unlock the editor. Until then, the admin stays intentionally quiet.</p>
+                    </div>
 
                     <div class="quick-stats mb-4">
                         <div class="quick-stat">
@@ -60,83 +59,102 @@
                         </div>
                     </div>
 
-                    <div id="instance-list" class="instance-list"></div>
+                    <div id="message-bar" class="alert status-alert mb-0" role="status">Create or select an instance to unlock the configuration form.</div>
                 </section>
             </aside>
 
-            <main class="col-12 col-xxl-8">
-                <section class="card-shell hero-panel p-4 p-lg-5 mb-4">
-                    <div class="row g-4 align-items-start">
-                        <div class="col-lg-7">
-                            <p class="eyebrow mb-2">Selected instance</p>
-                            <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-                                <h2 id="instance-title" class="instance-title mb-0">Select an instance</h2>
-                                <span id="status-chip" class="status-chip idle">idle</span>
+            <main class="col-12 col-xl-8 col-xxl-9">
+                <section class="view-panel is-active" data-view-panel="dashboard">
+                    <section class="card-shell hero-panel p-4 p-lg-5 mb-4">
+                        <div class="row g-4 align-items-start">
+                            <div class="col-lg-7">
+                                <p class="eyebrow mb-2">Workspace overview</p>
+                                <h2 class="instance-title mb-3">Access, lifecycle, and the important links.</h2>
+                                <p class="hero-copy mb-0">Keep the selected instance in view, then jump directly to runtime endpoints or lifecycle actions without wading through every configuration field.</p>
                             </div>
-                            <p id="instance-subtitle" class="hero-copy mb-0">Create or select an instance to unlock configuration. Until then, the editor stays intentionally locked.</p>
-                        </div>
-                        <div class="col-lg-5">
-                            <div class="endpoint-grid">
-                                <article class="endpoint-card">
-                                    <span class="endpoint-label">Application</span>
-                                    <a id="app-link" class="endpoint-value" href="#" target="_blank" rel="noreferrer">Not available</a>
-                                </article>
-                                <article class="endpoint-card">
-                                    <span class="endpoint-label">phpMyAdmin</span>
-                                    <a id="pma-link" class="endpoint-value" href="#" target="_blank" rel="noreferrer">Not available</a>
-                                </article>
-                                <article class="endpoint-card">
-                                    <span class="endpoint-label">SSH target</span>
-                                    <p id="ssh-target" class="endpoint-value mb-0">Not available</p>
-                                </article>
-                                <article class="endpoint-card endpoint-card--action">
-                                    <span class="endpoint-label">Workspace console</span>
-                                    <a id="console-link" class="btn btn-light btn-sm rounded-pill mt-2 align-self-start" href="#console-panel">Open web console</a>
-                                </article>
+                            <div class="col-lg-5">
+                                <div class="endpoint-grid">
+                                    <article class="endpoint-card">
+                                        <span class="endpoint-label">Application</span>
+                                        <a id="app-link" class="endpoint-value" href="#" target="_blank" rel="noreferrer">Not available</a>
+                                    </article>
+                                    <article class="endpoint-card">
+                                        <span class="endpoint-label">phpMyAdmin</span>
+                                        <a id="pma-link" class="endpoint-value" href="#" target="_blank" rel="noreferrer">Not available</a>
+                                    </article>
+                                    <article class="endpoint-card">
+                                        <span class="endpoint-label">SSH target</span>
+                                        <p id="ssh-target" class="endpoint-value mb-0">Not available</p>
+                                    </article>
+                                    <article class="endpoint-card endpoint-card--action">
+                                        <span class="endpoint-label">Workspace shell</span>
+                                        <button id="console-link" type="button" class="btn btn-light btn-sm rounded-pill mt-2 align-self-start">Open shell view</button>
+                                    </article>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
+
+                    <section class="card-shell p-4 p-lg-5">
+                        <div class="section-header mb-4">
+                            <div class="section-icon"><i class="bi bi-rocket"></i></div>
+                            <div>
+                                <p class="eyebrow eyebrow-dark mb-2">Actions</p>
+                                <h2 class="section-title mb-1">Lifecycle</h2>
+                                <p class="section-copy mb-0">Start, stop, restart, or destroy the selected instance from a focused action area.</p>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-actions">
+                            <button id="start-button" class="btn btn-success" type="button" data-action="up"><i class="bi bi-play-fill me-1"></i>Start</button>
+                            <button id="stop-button" class="btn btn-outline-dark" type="button" data-action="down"><i class="bi bi-stop-fill me-1"></i>Stop</button>
+                            <button id="restart-button" class="btn btn-outline-dark" type="button" data-action="restart"><i class="bi bi-arrow-repeat me-1"></i>Restart</button>
+                            <button id="destroy-button" class="btn btn-outline-danger" type="button" data-action="destroy"><i class="bi bi-trash3 me-1"></i>Destroy</button>
+                        </div>
+                    </section>
                 </section>
 
-                <section id="console-panel" class="card-shell p-4 p-lg-5 mb-4">
-                    <div class="section-header mb-4">
-                        <div class="section-icon"><i class="bi bi-terminal-dash"></i></div>
-                        <div>
-                            <p class="eyebrow eyebrow-dark mb-2">Console</p>
-                            <h2 class="section-title mb-1">Run commands in the workspace</h2>
-                            <p id="console-subtitle" class="section-copy mb-0">Commands run inside the selected workspace container from its project root.</p>
-                        </div>
-                    </div>
-
-                    <form id="console-form" class="console-form">
-                        <label class="form-label label-caps" for="console-command">Command</label>
-                        <div class="console-toolbar mb-3">
-                            <input id="console-command" class="form-control console-input" type="text" placeholder="pwd, cd workspace, git status" autocomplete="off">
-                            <div class="console-buttons">
-                                <button id="console-run-button" class="btn btn-dark" type="submit"><i class="bi bi-play-fill me-2"></i>Send</button>
-                                <button id="console-clear-button" class="btn btn-outline-dark" type="button">Clear output</button>
+                <section class="view-panel" data-view-panel="instances">
+                    <section class="card-shell p-4 p-lg-5 mb-4">
+                        <div class="d-flex justify-content-between align-items-start gap-3 mb-4 flex-wrap">
+                            <div>
+                                <p class="eyebrow eyebrow-dark mb-2">Fleet</p>
+                                <h2 class="section-title mb-1">Instances</h2>
+                                <p class="section-copy mb-0">Create, browse, and switch the active stack from one dedicated view.</p>
                             </div>
+                            <button id="refresh-button" type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3">Refresh</button>
                         </div>
-                    </form>
 
-                    <div class="console-shortcuts mb-3">
-                        <button class="btn btn-outline-dark btn-sm rounded-pill" type="button" data-console-command="pwd">pwd</button>
-                        <button class="btn btn-outline-dark btn-sm rounded-pill" type="button" data-console-command="ls -la">ls -la</button>
-                        <button class="btn btn-outline-dark btn-sm rounded-pill" type="button" data-console-command="git status">git status</button>
-                    </div>
+                        <form id="create-form" class="create-box mb-4">
+                            <label for="new-instance-name" class="form-label label-caps">New instance</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text"><i class="bi bi-plus-circle"></i></span>
+                                <input id="new-instance-name" name="name" class="form-control" type="text" placeholder="client-a" autocomplete="off" required>
+                            </div>
+                            <button class="btn btn-dark w-100 mt-3" type="submit">Create instance</button>
+                            <div class="form-text mt-2">Use letters, numbers, hyphens, or underscores.</div>
+                        </form>
 
-                    <div class="console-meta mb-3">
-                        <span id="console-cwd" class="console-badge">cwd: unavailable</span>
-                        <span id="console-status" class="console-badge">session: offline</span>
-                    </div>
-
-                    <pre id="console-output" class="console-output mb-0">Select a running instance to open its workspace console.</pre>
+                        <div id="instance-list" class="instance-list"></div>
+                    </section>
                 </section>
 
-                <form id="config-form">
-                    <div class="row g-4">
-                        <div class="col-12 col-xl-7">
-                            <section class="card-shell p-4 p-lg-5 mb-4">
+                <section class="view-panel" data-view-panel="settings">
+                    <form id="config-form">
+                        <section class="card-shell p-4 mb-4">
+                            <div class="settings-topbar">
+                                <div>
+                                    <p class="eyebrow eyebrow-dark mb-2">Configuration</p>
+                                    <h2 class="section-title mb-1">Settings</h2>
+                                    <p class="section-copy mb-0">Edit the real instance `.env` without mixing it into the runtime dashboard.</p>
+                                </div>
+                                <button id="save-button" class="btn btn-dark btn-lg" type="submit"><i class="bi bi-save me-2"></i>Save configuration</button>
+                            </div>
+                        </section>
+
+                        <div class="row g-4">
+                            <div class="col-12 col-xl-7">
+                                <section class="card-shell p-4 p-lg-5 mb-4">
                                 <div class="section-header mb-4">
                                     <div class="section-icon"><i class="bi bi-toggles2"></i></div>
                                     <div>
@@ -171,7 +189,7 @@
                                 </div>
                             </section>
 
-                            <section class="card-shell p-4 p-lg-5 mb-4">
+                                <section class="card-shell p-4 p-lg-5 mb-4">
                                 <div class="section-header mb-4">
                                     <div class="section-icon"><i class="bi bi-broadcast"></i></div>
                                     <div>
@@ -211,11 +229,11 @@
                                         <input class="form-control form-control-lg" type="text" name="PHP_EXTENSIONS" placeholder="pdo pdo_mysql mysqli mbstring zip gd curl intl">
                                     </div>
                                 </div>
-                            </section>
-                        </div>
+                                </section>
+                            </div>
 
-                        <div class="col-12 col-xl-5">
-                            <section class="card-shell p-4 mb-4">
+                            <div class="col-12 col-xl-5">
+                                <section class="card-shell p-4 mb-4">
                                 <div class="section-header mb-4">
                                     <div class="section-icon"><i class="bi bi-person-workspace"></i></div>
                                     <div>
@@ -245,7 +263,7 @@
                                 </div>
                             </section>
 
-                            <section class="card-shell p-4 mb-4">
+                                <section class="card-shell p-4 mb-4">
                                 <div class="section-header mb-4">
                                     <div class="section-icon"><i class="bi bi-database-lock"></i></div>
                                     <div>
@@ -275,31 +293,47 @@
                                 </div>
                             </section>
 
-                            <section class="card-shell p-4 sticky-actions">
-                                <div class="section-header mb-4">
-                                    <div class="section-icon"><i class="bi bi-rocket"></i></div>
-                                    <div>
-                                        <p class="eyebrow eyebrow-dark mb-2">Actions</p>
-                                        <h2 class="section-title mb-1">Lifecycle</h2>
-                                        <p class="section-copy mb-0">Save first, then start, stop, or rebuild the target.</p>
-                                    </div>
-                                </div>
-
-                                <div class="d-grid gap-3">
-                                    <button id="save-button" class="btn btn-dark btn-lg" type="submit"><i class="bi bi-save me-2"></i>Save configuration</button>
-                                    <div class="action-grid">
-                                        <button id="start-button" class="btn btn-success" type="button" data-action="up"><i class="bi bi-play-fill me-1"></i>Start</button>
-                                        <button id="stop-button" class="btn btn-outline-dark" type="button" data-action="down"><i class="bi bi-stop-fill me-1"></i>Stop</button>
-                                        <button id="restart-button" class="btn btn-outline-dark" type="button" data-action="restart"><i class="bi bi-arrow-repeat me-1"></i>Restart</button>
-                                    </div>
-                                    <button id="destroy-button" class="btn btn-outline-danger" type="button" data-action="destroy"><i class="bi bi-trash3 me-2"></i>Destroy instance</button>
-                                </div>
-
-                                <div id="message-bar" class="alert status-alert mt-4 mb-0" role="status">Create or select an instance to unlock the configuration form.</div>
-                            </section>
+                            </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </section>
+
+                <section class="view-panel" data-view-panel="shell">
+                    <section id="console-panel" class="card-shell p-4 p-lg-5 mb-4">
+                        <div class="section-header mb-4">
+                            <div class="section-icon"><i class="bi bi-terminal-dash"></i></div>
+                            <div>
+                                <p class="eyebrow eyebrow-dark mb-2">Console</p>
+                                <h2 class="section-title mb-1">Shell</h2>
+                                <p id="console-subtitle" class="section-copy mb-0">Commands run inside the selected workspace container from its project root.</p>
+                            </div>
+                        </div>
+
+                        <form id="console-form" class="console-form">
+                            <label class="form-label label-caps" for="console-command">Command</label>
+                            <div class="console-toolbar mb-3">
+                                <input id="console-command" class="form-control console-input" type="text" placeholder="pwd, cd workspace, git status" autocomplete="off">
+                                <div class="console-buttons">
+                                    <button id="console-run-button" class="btn btn-dark" type="submit"><i class="bi bi-play-fill me-2"></i>Send</button>
+                                    <button id="console-clear-button" class="btn btn-outline-dark" type="button">Clear output</button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <div class="console-shortcuts mb-3">
+                            <button class="btn btn-outline-dark btn-sm rounded-pill" type="button" data-console-command="pwd">pwd</button>
+                            <button class="btn btn-outline-dark btn-sm rounded-pill" type="button" data-console-command="ls -la">ls -la</button>
+                            <button class="btn btn-outline-dark btn-sm rounded-pill" type="button" data-console-command="git status">git status</button>
+                        </div>
+
+                        <div class="console-meta mb-3">
+                            <span id="console-cwd" class="console-badge">cwd: unavailable</span>
+                            <span id="console-status" class="console-badge">session: offline</span>
+                        </div>
+
+                        <pre id="console-output" class="console-output mb-0">Select a running instance to open its workspace console.</pre>
+                    </section>
+                </section>
             </main>
         </div>
     </div>
