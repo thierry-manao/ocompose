@@ -151,7 +151,27 @@ path_contains_dir() {
 }
 
 generate_ui_password() {
-    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 24
+    local alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    local password=''
+    local alphabet_length=${#alphabet}
+
+    while [[ ${#password} -lt 24 ]]; do
+        local random_byte
+        random_byte="$(od -An -N1 -tu1 /dev/urandom | tr -d '[:space:]')"
+        password+="${alphabet:$(( random_byte % alphabet_length )):1}"
+    done
+
+    printf '%s' "$password"
+}
+
+write_ui_auth_file() {
+    local username="$1"
+    local password="$2"
+
+    cat > "$UI_AUTH_FILE" <<EOF
+OCOMPOSE_UI_USERNAME=$username
+OCOMPOSE_UI_PASSWORD=$password
+EOF
 }
 
 ensure_ui_auth_file() {
@@ -166,19 +186,27 @@ ensure_ui_auth_file() {
         password="$(generate_ui_password)"
     fi
 
-    cat > "$UI_AUTH_FILE" <<EOF
-OCOMPOSE_UI_USERNAME=$username
-OCOMPOSE_UI_PASSWORD=$password
-EOF
+    write_ui_auth_file "$username" "$password"
 }
 
 load_ui_auth() {
+    local requested_username="${OCOMPOSE_UI_USERNAME:-}"
+    local requested_password="${OCOMPOSE_UI_PASSWORD:-}"
+
     ensure_ui_auth_file
 
     set -a
     # shellcheck disable=SC1090
     source "$UI_AUTH_FILE"
     set +a
+
+    if [[ -n "$requested_username" ]]; then
+        OCOMPOSE_UI_USERNAME="$requested_username"
+    fi
+
+    if [[ -n "$requested_password" ]]; then
+        OCOMPOSE_UI_PASSWORD="$requested_password"
+    fi
 }
 
 cmd_install_cli() {
@@ -391,6 +419,10 @@ cmd_ui() {
             fi
 
             load_ui_auth
+
+            if [[ -n "${OCOMPOSE_UI_USERNAME:-}" && -n "${OCOMPOSE_UI_PASSWORD:-}" ]]; then
+                write_ui_auth_file "$OCOMPOSE_UI_USERNAME" "$OCOMPOSE_UI_PASSWORD"
+            fi
 
             echo -e "${CYAN}Launching ocompose web UI in the background on http://localhost:${port}${NC}"
             nohup env \
