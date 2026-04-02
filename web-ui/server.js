@@ -109,6 +109,19 @@ async function readInstanceConfig(instanceName) {
     return parseEnv(raw);
 }
 
+async function readResolvedInstanceConfig(instanceName) {
+    const [template, config] = await Promise.all([
+        loadTemplate(),
+        readInstanceConfig(instanceName),
+    ]);
+
+    return {
+        ...template.defaults,
+        ...config,
+        PROJECT_NAME: instanceName,
+    };
+}
+
 async function writeInstanceConfig(instanceName, configUpdates) {
     const template = await loadTemplate();
     const envPath = path.join(INSTANCES_DIR, instanceName, '.env');
@@ -235,7 +248,7 @@ async function runOcompose(args) {
 
 async function getInstance(instanceName) {
     const [config, runningContainers] = await Promise.all([
-        readInstanceConfig(instanceName),
+        readResolvedInstanceConfig(instanceName),
         getRunningContainers(),
     ]);
 
@@ -251,7 +264,7 @@ async function listInstances() {
     const instances = [];
     for (const instanceName of instanceNames) {
         try {
-            const config = await readInstanceConfig(instanceName);
+            const config = await readResolvedInstanceConfig(instanceName);
             instances.push(buildInstanceSummary(instanceName, config, runningContainers));
         } catch (error) {
             instances.push({
