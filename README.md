@@ -75,6 +75,7 @@ Output:
 ```
 Usage: ocompose.sh <instance> <command> [options]
        ocompose.sh list
+  ocompose.sh ui [port]
 
 Commands:
   init       Create a new instance
@@ -86,7 +87,28 @@ Commands:
   logs       Tail logs
   destroy    Remove instance entirely
   list       List all instances
+  ui         Start the web admin UI
   help       Show this help
+```
+
+## Web UI
+
+The project now includes a small admin server for instance management. It edits the same `instances/<name>/.env` files used by the CLI, and it can also run `init`, `up`, `down`, `restart`, and `destroy` for you.
+
+```bash
+./scripts/ocompose.sh ui
+```
+
+Then open:
+
+```text
+http://localhost:8787
+```
+
+Optional custom port:
+
+```bash
+./scripts/ocompose.sh ui 9090
 ```
 
 ---

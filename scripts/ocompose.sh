@@ -42,6 +42,19 @@ copy_if_missing() {
     fi
 }
 
+has_flag() {
+    local expected_flag="$1"
+    shift
+
+    for arg in "$@"; do
+        if [[ "$arg" == "$expected_flag" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 ensure_instance_files() {
     local instance_dir="$INSTANCES_DIR/$INSTANCE"
 
@@ -107,11 +120,18 @@ compose_cmd() {
 cmd_init() {
     require_instance
     local instance_dir="$INSTANCES_DIR/$INSTANCE"
+    local auto_confirm="false"
+
+    if has_flag "--yes" "$@"; then
+        auto_confirm="true"
+    fi
 
     if [[ -d "$instance_dir" ]]; then
         echo -e "${YELLOW}⚠  Instance '$INSTANCE' already exists at $instance_dir${NC}"
-        read -p "   Overwrite .env? (y/N): " confirm
-        [[ "$confirm" != "y" && "$confirm" != "Y" ]] && exit 0
+        if [[ "$auto_confirm" != "true" ]]; then
+            read -p "   Overwrite .env? (y/N): " confirm
+            [[ "$confirm" != "y" && "$confirm" != "Y" ]] && exit 0
+        fi
     fi
 
     mkdir -p "$instance_dir/www"
@@ -144,6 +164,18 @@ cmd_init() {
     echo ""
     echo -e "   ${CYAN}Edit the .env file, then run:${NC}"
     echo -e "   ./scripts/ocompose.sh $INSTANCE up"
+}
+
+cmd_ui() {
+    local port="${1:-${OCOMPOSE_UI_PORT:-8787}}"
+
+    if ! command -v node >/dev/null 2>&1; then
+        echo -e "${RED}✗ Error: Node.js is required to run the web UI.${NC}"
+        exit 1
+    fi
+
+    echo -e "${CYAN}Launching ocompose web UI on http://localhost:${port}${NC}"
+    OCOMPOSE_UI_PORT="$port" node "$PROJECT_DIR/web-ui/server.js"
 }
 
 cmd_up() {
@@ -194,9 +226,17 @@ cmd_logs() {
 cmd_destroy() {
     require_instance
     load_instance_env
+    local auto_confirm="false"
+
+    if has_flag "--yes" "$@"; then
+        auto_confirm="true"
+    fi
+
     echo -e "${RED}⚠  This will destroy instance '$INSTANCE' (containers, volumes, config).${NC}"
-    read -p "   Are you sure? (y/N): " confirm
-    [[ "$confirm" != "y" && "$confirm" != "Y" ]] && exit 0
+    if [[ "$auto_confirm" != "true" ]]; then
+        read -p "   Are you sure? (y/N): " confirm
+        [[ "$confirm" != "y" && "$confirm" != "Y" ]] && exit 0
+    fi
 
     compose_cmd down -v 2>/dev/null || true
     rm -rf "$INSTANCES_DIR/$INSTANCE"
@@ -247,6 +287,7 @@ cmd_help() {
     echo ""
     echo "Usage: ocompose.sh <instance> <command> [options]"
     echo "       ocompose.sh list"
+    echo "       ocompose.sh ui [port]"
     echo ""
     echo "Commands:"
     echo "  init       Create a new instance"
@@ -258,6 +299,7 @@ cmd_help() {
     echo "  logs       Tail logs"
     echo "  destroy    Remove instance entirely"
     echo "  list       List all instances"
+    echo "  ui         Start the web admin UI"
     echo "  help       Show this help"
     echo ""
     echo "Examples:"
@@ -266,6 +308,7 @@ cmd_help() {
     echo "  ocompose.sh client-a shell      # SSH into workspace"
     echo "  ocompose.sh blog init           # Create another instance"
     echo "  ocompose.sh list                # See all instances"
+    echo "  ocompose.sh ui                  # Open the web admin"
     echo ""
 }
 
@@ -277,6 +320,7 @@ cmd_help() {
 case "${1:-help}" in
     list) cmd_list; exit 0 ;;
     help) cmd_help; exit 0 ;;
+    ui) shift; cmd_ui "$@"; exit 0 ;;
 esac
 
 # Instance-specific commands

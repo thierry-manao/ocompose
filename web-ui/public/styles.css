@@ -1,0 +1,335 @@
+:root {
+    color-scheme: light;
+    --bg: #f3efe5;
+    --panel: rgba(255, 250, 240, 0.86);
+    --panel-strong: rgba(255, 248, 232, 0.96);
+    --ink: #1e2a2f;
+    --muted: #5a6767;
+    --line: rgba(30, 42, 47, 0.12);
+    --accent: #0c7c59;
+    --accent-strong: #095b42;
+    --warn: #c2543d;
+    --idle: #b8a27d;
+    --shadow: 0 20px 60px rgba(44, 37, 24, 0.12);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Aptos", "Trebuchet MS", "Gill Sans", sans-serif;
+    color: var(--ink);
+    background:
+        radial-gradient(circle at top left, rgba(12, 124, 89, 0.18), transparent 30%),
+        radial-gradient(circle at right, rgba(194, 84, 61, 0.12), transparent 28%),
+        linear-gradient(135deg, #f7f1e1 0%, #efe9dc 52%, #e4ede7 100%);
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: linear-gradient(rgba(30, 42, 47, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(30, 42, 47, 0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+}
+
+.app-shell {
+    position: relative;
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 24px;
+    min-height: 100vh;
+    padding: 24px;
+}
+
+.sidebar,
+.main-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.panel {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+}
+
+.panel::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    height: 3px;
+    background: linear-gradient(90deg, rgba(12, 124, 89, 0.7), rgba(194, 84, 61, 0.45));
+}
+
+.brand-block,
+.hero,
+.form-section,
+.actions-panel,
+.instances-panel,
+.create-panel,
+.metric-card {
+    padding: 22px;
+}
+
+.eyebrow,
+.metric-label,
+.field-hint,
+.message-bar {
+    margin: 0;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+h1,
+h2 {
+    margin: 0;
+    font-family: "Georgia", "Times New Roman", serif;
+    font-weight: 700;
+    line-height: 1;
+}
+
+h1 {
+    font-size: clamp(2.2rem, 4vw, 3.4rem);
+}
+
+h2 {
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+
+.lede {
+    margin: 10px 0 0;
+    color: var(--muted);
+    max-width: 52ch;
+}
+
+.inline-row,
+.panel-header,
+.action-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.panel-header {
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+.instance-list,
+.config-form,
+.metrics-grid,
+.field-grid,
+.toggle-grid {
+    display: grid;
+    gap: 16px;
+}
+
+.instance-list {
+    max-height: 50vh;
+    overflow: auto;
+}
+
+.instance-card {
+    border: 1px solid rgba(30, 42, 47, 0.1);
+    border-radius: 18px;
+    padding: 16px;
+    background: var(--panel-strong);
+    cursor: pointer;
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.instance-card:hover,
+.instance-card.active {
+    transform: translateY(-1px);
+    border-color: rgba(12, 124, 89, 0.36);
+    background: rgba(237, 248, 244, 0.96);
+}
+
+.instance-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.metrics-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.metric-card a,
+.metric-card p:last-child {
+    margin: 10px 0 0;
+    font-size: 1.05rem;
+    color: var(--ink);
+    word-break: break-word;
+}
+
+.status-chip {
+    align-self: start;
+    border-radius: 999px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: white;
+}
+
+.status-chip.running {
+    background: var(--accent);
+}
+
+.status-chip.stopped,
+.status-chip.invalid {
+    background: var(--warn);
+}
+
+.status-chip.idle {
+    background: var(--idle);
+}
+
+.toggle-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.toggle-card,
+label {
+    display: grid;
+    gap: 8px;
+}
+
+.toggle-card {
+    align-items: center;
+    grid-template-columns: 1fr auto;
+    padding: 16px;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.two-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+input,
+button {
+    font: inherit;
+}
+
+input[type="text"],
+input[type="number"] {
+    width: 100%;
+    border: 1px solid rgba(30, 42, 47, 0.14);
+    border-radius: 14px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.82);
+    color: var(--ink);
+}
+
+input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    accent-color: var(--accent);
+}
+
+button {
+    border: 0;
+    border-radius: 14px;
+    padding: 12px 16px;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    transition: transform 160ms ease, background 160ms ease, opacity 160ms ease;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    background: var(--accent-strong);
+}
+
+button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.ghost-button {
+    background: rgba(30, 42, 47, 0.08);
+    color: var(--ink);
+}
+
+.ghost-button:hover {
+    background: rgba(30, 42, 47, 0.15);
+}
+
+.danger-button {
+    background: var(--warn);
+}
+
+.danger-button:hover {
+    background: #9f3e29;
+}
+
+.message-bar {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(12, 124, 89, 0.08);
+    color: var(--ink);
+}
+
+.message-bar.error {
+    background: rgba(194, 84, 61, 0.12);
+}
+
+@media (max-width: 1100px) {
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .metrics-grid,
+    .toggle-grid,
+    .two-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .instance-list {
+        max-height: none;
+    }
+}
+
+@media (max-width: 680px) {
+    .app-shell {
+        padding: 14px;
+    }
+
+    .brand-block,
+    .hero,
+    .form-section,
+    .actions-panel,
+    .instances-panel,
+    .create-panel,
+    .metric-card {
+        padding: 18px;
+    }
+
+    .inline-row,
+    .action-row,
+    .panel-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

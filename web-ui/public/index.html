@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ocompose Admin</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="brand-block">
+                <p class="eyebrow">ocompose</p>
+                <h1>Instance control room</h1>
+                <p class="lede">Create, tune, and run isolated stacks from one place.</p>
+            </div>
+
+            <form id="create-form" class="panel create-panel">
+                <label for="new-instance-name">New instance</label>
+                <div class="inline-row">
+                    <input id="new-instance-name" name="name" type="text" placeholder="client-a" autocomplete="off" required>
+                    <button type="submit">Create</button>
+                </div>
+                <p class="field-hint">Letters, numbers, hyphens, and underscores only.</p>
+            </form>
+
+            <section class="panel instances-panel">
+                <div class="panel-header">
+                    <h2>Instances</h2>
+                    <button id="refresh-button" type="button" class="ghost-button">Refresh</button>
+                </div>
+                <div id="instance-list" class="instance-list"></div>
+            </section>
+        </aside>
+
+        <main class="main-panel">
+            <section class="hero panel">
+                <div>
+                    <p class="eyebrow">Admin UI</p>
+                    <h2 id="instance-title">Select an instance</h2>
+                    <p id="instance-subtitle" class="lede">The form edits the same .env file used by the CLI and Docker Compose.</p>
+                </div>
+                <div id="status-chip" class="status-chip idle">idle</div>
+            </section>
+
+            <section class="metrics-grid">
+                <article class="metric-card panel">
+                    <p class="metric-label">App</p>
+                    <a id="app-link" href="#" target="_blank" rel="noreferrer">Not available</a>
+                </article>
+                <article class="metric-card panel">
+                    <p class="metric-label">phpMyAdmin</p>
+                    <a id="pma-link" href="#" target="_blank" rel="noreferrer">Not available</a>
+                </article>
+                <article class="metric-card panel">
+                    <p class="metric-label">SSH</p>
+                    <p id="ssh-target">Not available</p>
+                </article>
+            </section>
+
+            <form id="config-form" class="config-form">
+                <section class="panel form-section">
+                    <div class="panel-header">
+                        <h2>Services</h2>
+                    </div>
+                    <div class="toggle-grid">
+                        <label class="toggle-card">
+                            <span>PHP stack</span>
+                            <input type="checkbox" name="PHP_ENABLED">
+                        </label>
+                        <label class="toggle-card">
+                            <span>MySQL</span>
+                            <input type="checkbox" name="MYSQL_ENABLED">
+                        </label>
+                        <label class="toggle-card">
+                            <span>phpMyAdmin</span>
+                            <input type="checkbox" name="PHPMYADMIN_ENABLED">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="panel form-section">
+                    <div class="panel-header">
+                        <h2>Ports and versions</h2>
+                    </div>
+                    <div class="field-grid two-columns">
+                        <label>
+                            <span>App port</span>
+                            <input type="number" name="APP_PORT">
+                        </label>
+                        <label>
+                            <span>Workspace SSH port</span>
+                            <input type="number" name="WORKSPACE_SSH_PORT">
+                        </label>
+                        <label>
+                            <span>MySQL port</span>
+                            <input type="number" name="MYSQL_PORT">
+                        </label>
+                        <label>
+                            <span>phpMyAdmin port</span>
+                            <input type="number" name="PHPMYADMIN_PORT">
+                        </label>
+                        <label>
+                            <span>PHP version</span>
+                            <input type="text" name="PHP_VERSION" placeholder="8.3">
+                        </label>
+                        <label>
+                            <span>MySQL version</span>
+                            <input type="text" name="MYSQL_VERSION" placeholder="8.0">
+                        </label>
+                    </div>
+                    <label>
+                        <span>PHP extensions</span>
+                        <input type="text" name="PHP_EXTENSIONS" placeholder="pdo pdo_mysql mysqli mbstring zip gd curl intl">
+                    </label>
+                </section>
+
+                <section class="panel form-section">
+                    <div class="panel-header">
+                        <h2>Workspace</h2>
+                    </div>
+                    <div class="field-grid two-columns">
+                        <label>
+                            <span>User</span>
+                            <input type="text" name="WORKSPACE_USER">
+                        </label>
+                        <label>
+                            <span>Shell</span>
+                            <input type="text" name="WORKSPACE_SHELL">
+                        </label>
+                        <label>
+                            <span>UID</span>
+                            <input type="number" name="WORKSPACE_UID">
+                        </label>
+                        <label>
+                            <span>GID</span>
+                            <input type="number" name="WORKSPACE_GID">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="panel form-section">
+                    <div class="panel-header">
+                        <h2>Database</h2>
+                    </div>
+                    <div class="field-grid two-columns">
+                        <label>
+                            <span>Database name</span>
+                            <input type="text" name="MYSQL_DATABASE">
+                        </label>
+                        <label>
+                            <span>Database user</span>
+                            <input type="text" name="MYSQL_USER">
+                        </label>
+                        <label>
+                            <span>Database password</span>
+                            <input type="text" name="MYSQL_PASSWORD">
+                        </label>
+                        <label>
+                            <span>Root password</span>
+                            <input type="text" name="MYSQL_ROOT_PASSWORD">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="panel actions-panel">
+                    <div class="action-row">
+                        <button id="save-button" type="submit">Save configuration</button>
+                        <button id="start-button" type="button" data-action="up">Start</button>
+                        <button id="stop-button" type="button" data-action="down" class="ghost-button">Stop</button>
+                        <button id="restart-button" type="button" data-action="restart" class="ghost-button">Restart</button>
+                        <button id="destroy-button" type="button" data-action="destroy" class="danger-button">Destroy</button>
+                    </div>
+                    <p id="message-bar" class="message-bar">Waiting for selection.</p>
+                </section>
+            </form>
+        </main>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
