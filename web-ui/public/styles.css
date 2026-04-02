@@ -250,6 +250,50 @@ body.app-body::before {
     letter-spacing: -0.05em;
 }
 
+.sidebar-switcher__title {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.sidebar-instance-list {
+    display: grid;
+    gap: 0.7rem;
+    max-height: 18rem;
+    overflow: auto;
+}
+
+.sidebar-instance-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.78);
+    text-align: left;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.sidebar-instance-button:hover,
+.sidebar-instance-button.active {
+    transform: translateY(-1px);
+    border-color: rgba(20, 182, 133, 0.24);
+    box-shadow: 0 12px 24px rgba(16, 26, 40, 0.08);
+}
+
+.sidebar-instance-button.active {
+    background: linear-gradient(135deg, rgba(13, 23, 38, 0.98), rgba(24, 38, 60, 0.94));
+    color: #faf6ef;
+}
+
+.sidebar-instance-button__name {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
 .instance-list {
     display: grid;
     gap: 0.85rem;
@@ -410,12 +454,6 @@ body.app-body::before {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.75rem;
-}
-
-.dashboard-actions {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.85rem;
 }
 
 .dashboard-instance-grid {
@@ -762,8 +800,7 @@ button:disabled {
 
 @media (max-width: 767.98px) {
     .quick-stats,
-    .action-grid,
-    .dashboard-actions {
+    .action-grid {
         grid-template-columns: 1fr;
     }
 

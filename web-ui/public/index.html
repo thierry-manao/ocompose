@@ -59,6 +59,17 @@
                         </div>
                     </div>
 
+                    <div class="sidebar-switcher mb-4">
+                        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+                            <div>
+                                <p class="eyebrow eyebrow-dark mb-1">Switch</p>
+                                <h3 class="sidebar-switcher__title mb-0">Instances</h3>
+                            </div>
+                            <button id="refresh-button" type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3">Refresh</button>
+                        </div>
+                        <div id="sidebar-instance-list" class="sidebar-instance-list"></div>
+                    </div>
+
                     <div id="message-bar" class="alert status-alert mb-0" role="status">Create or select an instance to unlock the configuration form.</div>
                 </section>
             </aside>
@@ -95,31 +106,13 @@
                         </div>
                     </section>
 
-                    <section class="card-shell p-4 p-lg-5">
-                        <div class="section-header mb-4">
-                            <div class="section-icon"><i class="bi bi-rocket"></i></div>
-                            <div>
-                                <p class="eyebrow eyebrow-dark mb-2">Actions</p>
-                                <h2 class="section-title mb-1">Lifecycle</h2>
-                                <p class="section-copy mb-0">Start, stop, restart, or destroy the selected instance from a focused action area.</p>
-                            </div>
-                        </div>
-
-                        <div class="dashboard-actions">
-                            <button id="start-button" class="btn btn-success" type="button" data-action="up"><i class="bi bi-play-fill me-1"></i>Start</button>
-                            <button id="stop-button" class="btn btn-outline-dark" type="button" data-action="down"><i class="bi bi-stop-fill me-1"></i>Stop</button>
-                            <button id="restart-button" class="btn btn-outline-dark" type="button" data-action="restart"><i class="bi bi-arrow-repeat me-1"></i>Restart</button>
-                            <button id="destroy-button" class="btn btn-outline-danger" type="button" data-action="destroy"><i class="bi bi-trash3 me-1"></i>Destroy</button>
-                        </div>
-                    </section>
-
                     <section class="card-shell p-4 p-lg-5 mt-4">
                         <div class="section-header mb-4">
                             <div class="section-icon"><i class="bi bi-boxes"></i></div>
                             <div>
                                 <p class="eyebrow eyebrow-dark mb-2">Fleet Control</p>
-                                <h2 class="section-title mb-1">All instances at a glance</h2>
-                                <p class="section-copy mb-0">Run lifecycle actions, switch context, or jump straight into settings and shell from one dashboard grid.</p>
+                                <h2 class="section-title mb-1">Instances</h2>
+                                <p class="section-copy mb-0">Keep the dashboard simple: one card per instance, with the actions you actually need.</p>
                             </div>
                         </div>
 
@@ -135,7 +128,6 @@
                                 <h2 class="section-title mb-1">Instances</h2>
                                 <p class="section-copy mb-0">Create, browse, and switch the active stack from one dedicated view.</p>
                             </div>
-                            <button id="refresh-button" type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3">Refresh</button>
                         </div>
 
                         <form id="create-form" class="create-box mb-4">

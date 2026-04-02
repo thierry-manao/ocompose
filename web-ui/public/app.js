@@ -28,6 +28,7 @@ const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
 const sectionNavButtons = Array.from(document.querySelectorAll('[data-view]'));
 const viewPanels = Array.from(document.querySelectorAll('[data-view-panel]'));
 const dashboardInstanceGrid = document.querySelector('#dashboard-instance-grid');
+const sidebarInstanceList = document.querySelector('#sidebar-instance-list');
 const consoleForm = document.querySelector('#console-form');
 const consoleSurface = document.querySelector('#console-surface');
 const consoleCommand = document.querySelector('#console-command');
@@ -369,6 +370,7 @@ function fillForm(instance) {
 
 function renderInstances() {
     instanceList.innerHTML = '';
+    renderSidebarInstances();
 
     if (state.instances.length === 0) {
         const empty = document.createElement('div');
@@ -408,6 +410,38 @@ function renderInstances() {
     state.selectedInstanceName = selected.name;
     fillForm(selected);
     renderDashboardInstances();
+}
+
+function renderSidebarInstances() {
+    sidebarInstanceList.innerHTML = '';
+
+    if (state.instances.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'No instances yet.';
+        sidebarInstanceList.appendChild(empty);
+        return;
+    }
+
+    state.instances.forEach((instance) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `sidebar-instance-button${instance.name === state.selectedInstanceName ? ' active' : ''}`;
+        button.dataset.instanceName = instance.name;
+        button.innerHTML = `
+            <span class="sidebar-instance-button__name">${instance.name}</span>
+            <span class="instance-card__status ${instance.status}">${instance.status}</span>
+        `;
+
+        button.addEventListener('click', () => {
+            state.selectedInstanceName = instance.name;
+            renderInstances();
+            fillForm(instance);
+            setMessage(`Loaded ${instance.name}.`);
+        });
+
+        sidebarInstanceList.appendChild(button);
+    });
 }
 
 function renderDashboardInstances() {
