@@ -28,8 +28,9 @@ const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
 const sectionNavButtons = Array.from(document.querySelectorAll('[data-view]'));
 const viewPanels = Array.from(document.querySelectorAll('[data-view-panel]'));
 const consoleForm = document.querySelector('#console-form');
+const consoleSurface = document.querySelector('#console-surface');
 const consoleCommand = document.querySelector('#console-command');
-const consoleRunButton = document.querySelector('#console-run-button');
+const consolePrompt = document.querySelector('#console-prompt');
 const consoleClearButton = document.querySelector('#console-clear-button');
 const consoleOutput = document.querySelector('#console-output');
 const consoleSubtitle = document.querySelector('#console-subtitle');
@@ -96,6 +97,10 @@ function setActiveView(viewName) {
     }
 }
 
+function updateConsolePrompt(instance) {
+    consolePrompt.textContent = instance ? `${instance.name}$` : '$';
+}
+
 async function apiRequest(path, options = {}) {
     const response = await fetch(path, {
         headers: {
@@ -140,7 +145,6 @@ function updateEndpoints(instance) {
 
 function setConsoleEnabled(enabled) {
     consoleCommand.disabled = !enabled;
-    consoleRunButton.disabled = !enabled;
     consoleClearButton.disabled = !enabled;
     consoleShortcutButtons.forEach((button) => {
         button.disabled = !enabled;
@@ -245,6 +249,8 @@ async function ensureConsoleSession(instance) {
 }
 
 function updateConsoleState(instance) {
+    updateConsolePrompt(instance);
+
     if (!instance) {
         stopConsolePolling();
         setConsoleEnabled(false);
@@ -515,6 +521,12 @@ consoleShortcutButtons.forEach((button) => {
     });
 });
 
+consoleSurface.addEventListener('click', () => {
+    if (!consoleCommand.disabled) {
+        consoleCommand.focus();
+    }
+});
+
 consoleClearButton.addEventListener('click', () => {
     const instance = getSelectedInstance();
     if (!instance) {
@@ -551,7 +563,7 @@ consoleForm.addEventListener('submit', async (event) => {
     }
 
     try {
-        consoleRunButton.disabled = true;
+        consoleCommand.disabled = true;
         setConsoleStatus('session: busy');
         appendConsoleOutput(`$ ${command}`);
         consoleCommand.value = '';
@@ -568,7 +580,10 @@ consoleForm.addEventListener('submit', async (event) => {
         appendConsoleOutput(`[error]\n${error.message}`);
         setConsoleStatus('session: offline');
     } finally {
-        consoleRunButton.disabled = false;
+        consoleCommand.disabled = false;
+        if (state.activeView === 'shell' && !consoleCommand.disabled) {
+            consoleCommand.focus();
+        }
     }
 });
 

@@ -309,16 +309,11 @@
                             </div>
                         </div>
 
-                        <form id="console-form" class="console-form">
-                            <label class="form-label label-caps" for="console-command">Command</label>
-                            <div class="console-toolbar mb-3">
-                                <input id="console-command" class="form-control console-input" type="text" placeholder="pwd, cd workspace, git status" autocomplete="off">
-                                <div class="console-buttons">
-                                    <button id="console-run-button" class="btn btn-dark" type="submit"><i class="bi bi-play-fill me-2"></i>Send</button>
-                                    <button id="console-clear-button" class="btn btn-outline-dark" type="button">Clear output</button>
-                                </div>
-                            </div>
-                        </form>
+                        <div class="console-meta mb-3">
+                            <span id="console-cwd" class="console-badge">cwd: unavailable</span>
+                            <span id="console-status" class="console-badge">session: offline</span>
+                            <button id="console-clear-button" class="btn btn-outline-dark btn-sm rounded-pill ms-auto" type="button">Clear output</button>
+                        </div>
 
                         <div class="console-shortcuts mb-3">
                             <button class="btn btn-outline-dark btn-sm rounded-pill" type="button" data-console-command="pwd">pwd</button>
@@ -326,12 +321,15 @@
                             <button class="btn btn-outline-dark btn-sm rounded-pill" type="button" data-console-command="git status">git status</button>
                         </div>
 
-                        <div class="console-meta mb-3">
-                            <span id="console-cwd" class="console-badge">cwd: unavailable</span>
-                            <span id="console-status" class="console-badge">session: offline</span>
-                        </div>
-
-                        <pre id="console-output" class="console-output mb-0">Select a running instance to open its workspace console.</pre>
+                        <form id="console-form" class="console-shell">
+                            <div id="console-surface" class="console-surface" tabindex="0">
+                                <pre id="console-output" class="console-output mb-0">Select a running instance to open its workspace console.</pre>
+                                <label class="console-entry" for="console-command">
+                                    <span id="console-prompt" class="console-prompt">$</span>
+                                    <input id="console-command" class="console-inline-input" type="text" placeholder="Type a command and press Enter" autocomplete="off" spellcheck="false">
+                                </label>
+                            </div>
+                        </form>
                     </section>
                 </section>
             </main>
