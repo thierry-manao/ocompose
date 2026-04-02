@@ -99,10 +99,10 @@ function fillForm(instance) {
         setFormEnabled(false);
         updateLinks(null);
         instanceTitle.textContent = 'Select an instance';
-        instanceSubtitle.textContent = 'The form edits the same .env file used by the CLI and Docker Compose.';
+        instanceSubtitle.textContent = 'Create or select an instance to unlock configuration. Until then, the editor stays intentionally locked.';
         statusChip.textContent = 'idle';
         statusChip.className = 'status-chip idle';
-        setMessage('Waiting for selection.');
+        setMessage('Create or select an instance to unlock the configuration form.');
         return;
     }
 
@@ -308,7 +308,7 @@ logoutButton.addEventListener('click', async () => {
     try {
         setFormEnabled(false);
         await refreshInstances();
-        setMessage(state.instances.length ? 'Select an instance to edit it.' : 'Create your first instance to begin.');
+        setMessage(state.instances.length ? 'Select an instance to unlock editing.' : 'Create your first instance to unlock the configuration form.');
     } catch (error) {
         setMessage(error.message, true);
     }

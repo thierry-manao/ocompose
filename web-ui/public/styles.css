@@ -94,6 +94,12 @@ body.dashboard-body::before {
         height: 180px;
         background: radial-gradient(circle, rgba(21, 185, 138, 0.12), transparent 70%);
         pointer-events: none;
+        z-index: 0;
+    }
+
+    .dashboard-card > * {
+        position: relative;
+        z-index: 1;
     }
 
     .admin-shell {
@@ -466,6 +472,17 @@ body.dashboard-body::before {
         border-radius: 18px;
     }
 
+    input,
+    button,
+    select,
+    textarea,
+    .form-check-input,
+    .input-group,
+    form {
+        position: relative;
+        z-index: 2;
+    }
+
     .form-control,
     .input-group-text {
         border-color: rgba(13, 23, 38, 0.08);
@@ -481,6 +498,13 @@ body.dashboard-body::before {
     .form-control:focus,
     .btn:focus {
         box-shadow: 0 0 0 0.24rem rgba(21, 185, 138, 0.14) !important;
+    }
+
+    .form-control:disabled,
+    .form-check-input:disabled,
+    button:disabled {
+        cursor: not-allowed;
+        opacity: 0.58;
     }
 
     .btn {

@@ -12,7 +12,21 @@ const INSTANCES_DIR = path.join(PROJECT_DIR, 'instances');
 const TEMPLATE_PATH = path.join(PROJECT_DIR, '.env.example');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SCRIPT_PATH = path.join(PROJECT_DIR, 'scripts', 'ocompose.sh');
-const PORT = Number.parseInt(process.env.OCOMPOSE_UI_PORT || '8787', 10);
+
+function parsePort(value) {
+    if (value == null || value === '') {
+        return null;
+    }
+
+    const parsed = Number.parseInt(String(value), 10);
+    if (Number.isNaN(parsed) || parsed < 1 || parsed > 65535) {
+        return null;
+    }
+
+    return parsed;
+}
+
+const PORT = parsePort(process.argv[2]) || parsePort(process.env.OCOMPOSE_UI_PORT) || 8787;
 const AUTH_USERNAME = normalizeCredential(process.env.OCOMPOSE_UI_USERNAME || 'admin');
 const AUTH_PASSWORD = normalizeCredential(process.env.OCOMPOSE_UI_PASSWORD || '');
 const SESSION_COOKIE_NAME = 'ocompose_ui_session';
@@ -556,6 +570,15 @@ const server = http.createServer(async (request, response) => {
         const statusCode = error.code === 'ENOENT' ? 404 : 500;
         sendJson(response, statusCode, { error: error.message || 'Unexpected server error.' });
     }
+});
+
+server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+        console.error(`ocompose web UI could not start because port ${PORT} is already in use.`);
+        process.exit(1);
+    }
+
+    throw error;
 });
 
 server.listen(PORT, () => {
