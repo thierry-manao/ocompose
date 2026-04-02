@@ -329,13 +329,13 @@ COMMAND="${2:-help}"
 shift 2 2>/dev/null || true
 
 case "$COMMAND" in
-    init)    cmd_init ;;
+    init)    cmd_init "$@" ;;
     up)      cmd_up "$@" ;;
     down)    cmd_down "$@" ;;
     restart) cmd_restart ;;
     shell)   cmd_shell ;;
     status)  cmd_status ;;
     logs)    cmd_logs "$@" ;;
-    destroy) cmd_destroy ;;
+    destroy) cmd_destroy "$@" ;;
     help|*)  cmd_help ;;
 esac

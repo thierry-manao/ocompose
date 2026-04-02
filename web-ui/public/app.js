@@ -13,6 +13,9 @@ const messageBar = document.querySelector('#message-bar');
 const appLink = document.querySelector('#app-link');
 const pmaLink = document.querySelector('#pma-link');
 const sshTarget = document.querySelector('#ssh-target');
+const heroAppPort = document.querySelector('#hero-app-port');
+const heroMysqlPort = document.querySelector('#hero-mysql-port');
+const heroSshPort = document.querySelector('#hero-ssh-port');
 const refreshButton = document.querySelector('#refresh-button');
 const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
 
@@ -77,6 +80,9 @@ function updateLinks(instance) {
     pmaLink.style.pointerEvents = pmaUrl ? 'auto' : 'none';
 
     sshTarget.textContent = sshUrl || 'Not available';
+    heroAppPort.textContent = instance?.config?.APP_PORT || '-';
+    heroMysqlPort.textContent = instance?.config?.MYSQL_PORT || '-';
+    heroSshPort.textContent = instance?.config?.WORKSPACE_SSH_PORT || '-';
 }
 
 function setFormEnabled(enabled) {
@@ -94,6 +100,7 @@ function fillForm(instance) {
         instanceSubtitle.textContent = 'The form edits the same .env file used by the CLI and Docker Compose.';
         statusChip.textContent = 'idle';
         statusChip.className = 'status-chip idle';
+        setMessage('Waiting for selection.');
         return;
     }
 
@@ -124,7 +131,7 @@ function renderInstances() {
 
     if (state.instances.length === 0) {
         const empty = document.createElement('p');
-        empty.className = 'field-hint';
+        empty.className = 'text-secondary small mb-0';
         empty.textContent = 'No instances yet. Create one from the panel above.';
         instanceList.appendChild(empty);
         fillForm(null);
@@ -135,12 +142,16 @@ function renderInstances() {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `instance-card${instance.name === state.selectedInstanceName ? ' active' : ''}`;
+        const appPort = instance.config.APP_PORT || '-';
+        const sshPort = instance.config.WORKSPACE_SSH_PORT || '-';
         button.innerHTML = `
-            <strong>${instance.name}</strong>
-            <div class="instance-meta">
-                <span>${instance.status}</span>
-                <span>app ${instance.config.APP_PORT || '-'}</span>
-                <span>ssh ${instance.config.WORKSPACE_SSH_PORT || '-'}</span>
+            <div class="instance-card-header">
+                <strong class="instance-card-name">${instance.name}</strong>
+                <span class="instance-status-pill ${instance.status}">${instance.status}</span>
+            </div>
+            <div class="instance-card-meta">
+                <span class="meta-pill"><i class="bi bi-globe2"></i> app ${appPort}</span>
+                <span class="meta-pill"><i class="bi bi-terminal"></i> ssh ${sshPort}</span>
             </div>
         `;
         button.addEventListener('click', () => {
