@@ -27,6 +27,7 @@ const logoutButton = document.querySelector('#logout-button');
 const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
 const sectionNavButtons = Array.from(document.querySelectorAll('[data-view]'));
 const viewPanels = Array.from(document.querySelectorAll('[data-view-panel]'));
+const dashboardInstanceGrid = document.querySelector('#dashboard-instance-grid');
 const consoleForm = document.querySelector('#console-form');
 const consoleSurface = document.querySelector('#console-surface');
 const consoleCommand = document.querySelector('#console-command');
@@ -121,6 +122,36 @@ async function apiRequest(path, options = {}) {
 
 function getSelectedInstance() {
     return state.instances.find((instance) => instance.name === state.selectedInstanceName) || null;
+}
+
+async function runInstanceAction(instanceName, action) {
+    const instance = state.instances.find((entry) => entry.name === instanceName);
+    if (!instance) {
+        setMessage('Instance not found.', true);
+        return;
+    }
+
+    if (action === 'destroy' && !window.confirm(`Destroy ${instance.name} and remove its data?`)) {
+        return;
+    }
+
+    try {
+        setMessage(`${action} ${instance.name}...`);
+        await apiRequest(`/api/instances/${instance.name}/actions/${action}`, {
+            method: 'POST',
+        });
+
+        if (action === 'destroy') {
+            await refreshInstances(false);
+            setMessage(`Destroyed ${instance.name}.`);
+            return;
+        }
+
+        await refreshInstances();
+        setMessage(`${action} completed for ${instance.name}.`);
+    } catch (error) {
+        setMessage(error.message, true);
+    }
 }
 
 function updateEndpoints(instance) {
@@ -376,6 +407,51 @@ function renderInstances() {
     const selected = getSelectedInstance() || state.instances[0];
     state.selectedInstanceName = selected.name;
     fillForm(selected);
+    renderDashboardInstances();
+}
+
+function renderDashboardInstances() {
+    dashboardInstanceGrid.innerHTML = '';
+
+    if (state.instances.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'No instances yet. Create one from the Instances view.';
+        dashboardInstanceGrid.appendChild(empty);
+        return;
+    }
+
+    state.instances.forEach((instance) => {
+        const card = document.createElement('article');
+        card.className = `dashboard-instance-card${instance.name === state.selectedInstanceName ? ' active' : ''}`;
+        card.innerHTML = `
+            <div class="dashboard-instance-card__head">
+                <div>
+                    <h3 class="dashboard-instance-card__title">${instance.name}</h3>
+                    <p class="dashboard-instance-card__subtitle">${instance.status === 'running' ? 'Live environment' : 'Currently stopped'}</p>
+                </div>
+                <span class="instance-card__status ${instance.status}">${instance.status}</span>
+            </div>
+            <div class="dashboard-instance-card__meta">
+                <span><i class="bi bi-globe2"></i> App ${instance.config.APP_PORT || '-'}</span>
+                <span><i class="bi bi-database"></i> MySQL ${instance.config.MYSQL_PORT || '-'}</span>
+                <span><i class="bi bi-terminal"></i> SSH ${instance.config.WORKSPACE_SSH_PORT || '-'}</span>
+            </div>
+            <div class="dashboard-instance-card__actions">
+                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-select="${instance.name}">Select</button>
+                <button class="btn btn-sm btn-success" type="button" data-dashboard-action="up" data-dashboard-instance="${instance.name}">Start</button>
+                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-action="down" data-dashboard-instance="${instance.name}">Stop</button>
+                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-action="restart" data-dashboard-instance="${instance.name}">Restart</button>
+                <button class="btn btn-sm btn-outline-danger" type="button" data-dashboard-action="destroy" data-dashboard-instance="${instance.name}">Destroy</button>
+            </div>
+            <div class="dashboard-instance-card__footer">
+                <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Open settings</button>
+                <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="shell" data-dashboard-instance="${instance.name}">Open shell</button>
+            </div>
+        `;
+
+        dashboardInstanceGrid.appendChild(card);
+    });
 }
 
 async function refreshInstances(preserveSelection = true) {
@@ -470,27 +546,7 @@ actionButtons.forEach((button) => {
             return;
         }
 
-        if (action === 'destroy' && !window.confirm(`Destroy ${instance.name} and remove its data?`)) {
-            return;
-        }
-
-        try {
-            setMessage(`${action} ${instance.name}...`);
-            await apiRequest(`/api/instances/${instance.name}/actions/${action}`, {
-                method: 'POST',
-            });
-
-            if (action === 'destroy') {
-                await refreshInstances(false);
-                setMessage(`Destroyed ${instance.name}.`);
-                return;
-            }
-
-            await refreshInstances();
-            setMessage(`${action} completed for ${instance.name}.`);
-        } catch (error) {
-            setMessage(error.message, true);
-        }
+        await runInstanceAction(instance.name, action);
     });
 });
 
@@ -501,6 +557,45 @@ refreshButton.addEventListener('click', async () => {
         setMessage('Instances refreshed.');
     } catch (error) {
         setMessage(error.message, true);
+    }
+});
+
+dashboardInstanceGrid.addEventListener('click', async (event) => {
+    const target = event.target.closest('button');
+    if (!target) {
+        return;
+    }
+
+    const selectedInstanceName = target.dataset.dashboardSelect || target.dataset.dashboardInstance;
+    if (!selectedInstanceName) {
+        return;
+    }
+
+    const instance = state.instances.find((entry) => entry.name === selectedInstanceName);
+    if (!instance) {
+        setMessage('Instance not found.', true);
+        return;
+    }
+
+    if (target.dataset.dashboardSelect) {
+        state.selectedInstanceName = selectedInstanceName;
+        renderInstances();
+        fillForm(instance);
+        setMessage(`Loaded ${selectedInstanceName}.`);
+        return;
+    }
+
+    if (target.dataset.dashboardView) {
+        state.selectedInstanceName = selectedInstanceName;
+        renderInstances();
+        fillForm(instance);
+        setActiveView(target.dataset.dashboardView);
+        setMessage(`Loaded ${selectedInstanceName}.`);
+        return;
+    }
+
+    if (target.dataset.dashboardAction) {
+        await runInstanceAction(selectedInstanceName, target.dataset.dashboardAction);
     }
 });
 

@@ -418,6 +418,77 @@ body.app-body::before {
     gap: 0.85rem;
 }
 
+.dashboard-instance-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.dashboard-instance-card {
+    padding: 1rem;
+    border-radius: 24px;
+    border: 1px solid var(--line);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 241, 234, 0.92));
+    box-shadow: 0 12px 28px rgba(16, 26, 40, 0.06);
+}
+
+.dashboard-instance-card.active {
+    border-color: rgba(20, 182, 133, 0.24);
+    box-shadow: 0 18px 34px rgba(16, 26, 40, 0.1);
+}
+
+.dashboard-instance-card__head,
+.dashboard-instance-card__meta,
+.dashboard-instance-card__footer {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.dashboard-instance-card__title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.dashboard-instance-card__subtitle {
+    margin: 0.25rem 0 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.dashboard-instance-card__meta {
+    margin-top: 0.85rem;
+    flex-wrap: wrap;
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.dashboard-instance-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 1rem;
+}
+
+.dashboard-instance-card__footer {
+    margin-top: 1rem;
+    justify-content: flex-start;
+    gap: 1rem;
+}
+
+.dashboard-link-button {
+    color: var(--dark-soft);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.dashboard-link-button:hover {
+    color: var(--mint);
+}
+
 .view-panel {
     display: none;
 }
@@ -693,6 +764,10 @@ button:disabled {
     .quick-stats,
     .action-grid,
     .dashboard-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-instance-grid {
         grid-template-columns: 1fr;
     }
 
