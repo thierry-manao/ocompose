@@ -17,14 +17,17 @@ cd ocompose
 # Make the CLI executable
 chmod +x scripts/ocompose.sh
 
+# Optional: install `ocompose` as a terminal command
+./scripts/ocompose.sh install-cli
+
 # Create your first instance
-./scripts/ocompose.sh myapp init
+ocompose myapp init
 
 # (Optional) Edit the config
 nano instances/myapp/.env
 
 # Start it
-./scripts/ocompose.sh myapp up
+ocompose myapp up
 ```
 
 ---
@@ -70,12 +73,44 @@ Output:
 
 ---
 
+## CLI Setup
+
+Install the command into your user bin directory:
+
+```bash
+./scripts/ocompose.sh install-cli
+```
+
+Default install location:
+
+```text
+~/.local/bin/ocompose
+```
+
+Custom install location:
+
+```bash
+./scripts/ocompose.sh install-cli ~/bin
+```
+
+Remove it later if needed:
+
+```bash
+./scripts/ocompose.sh uninstall-cli
+```
+
+If your shell cannot find `ocompose`, add the install directory to `PATH`.
+
 ## CLI Commands
 
 ```
-Usage: ocompose.sh <instance> <command> [options]
-       ocompose.sh list
-  ocompose.sh ui [port]
+Usage: ocompose <instance> <command> [options]
+  ocompose list
+  ocompose ui [start] [port]
+  ocompose ui stop
+  ocompose ui status
+  ocompose install-cli [bin-dir]
+  ocompose uninstall-cli [bin-dir]
 
 Commands:
   init       Create a new instance
@@ -88,6 +123,8 @@ Commands:
   destroy    Remove instance entirely
   list       List all instances
   ui         Start the web admin UI
+  install-cli     Install the `ocompose` command
+  uninstall-cli   Remove the installed `ocompose` command
   help       Show this help
 ```
 
@@ -95,8 +132,10 @@ Commands:
 
 The project now includes a small admin server for instance management. It edits the same `instances/<name>/.env` files used by the CLI, and it can also run `init`, `up`, `down`, `restart`, and `destroy` for you.
 
+The admin UI is protected by a login. Credentials are generated on first start and stored in `.ocompose-ui.auth`, or you can provide them explicitly when starting the UI.
+
 ```bash
-./scripts/ocompose.sh ui
+ocompose ui
 ```
 
 Then open:
@@ -108,14 +147,22 @@ http://localhost:8787
 Optional custom port:
 
 ```bash
-./scripts/ocompose.sh ui 9090
+ocompose ui 9090
+ocompose ui 8787 --username admin --password change-me-now
 ```
 
 The UI now starts in the background and writes its PID and logs to the project root. You can inspect or stop it with:
 
 ```bash
-./scripts/ocompose.sh ui status
-./scripts/ocompose.sh ui stop
+ocompose ui status
+ocompose ui stop
+```
+
+Authentication files:
+
+```text
+.ocompose-ui.auth
+.ocompose-ui.log
 ```
 
 ---

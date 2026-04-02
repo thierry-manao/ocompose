@@ -16,6 +16,7 @@ const sshTarget = document.querySelector('#ssh-target');
 const heroAppPort = document.querySelector('#hero-app-port');
 const heroMysqlPort = document.querySelector('#hero-mysql-port');
 const heroSshPort = document.querySelector('#hero-ssh-port');
+const logoutButton = document.querySelector('#logout-button');
 const refreshButton = document.querySelector('#refresh-button');
 const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
 
@@ -51,6 +52,7 @@ async function apiRequest(path, options = {}) {
             'Content-Type': 'application/json',
             ...(options.headers || {}),
         },
+        credentials: 'same-origin',
         ...options,
     });
 
@@ -285,6 +287,18 @@ refreshButton.addEventListener('click', async () => {
         setMessage('Refreshing instances...');
         await refreshInstances();
         setMessage('Instance list refreshed.');
+    } catch (error) {
+        setMessage(error.message, true);
+    }
+});
+
+logoutButton.addEventListener('click', async () => {
+    try {
+        setMessage('Signing out...');
+        await apiRequest('/api/auth/logout', {
+            method: 'POST',
+        });
+        window.location.replace('/login');
     } catch (error) {
         setMessage(error.message, true);
     }

@@ -10,159 +10,139 @@
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body class="dashboard-body">
-    <div class="container-fluid py-4 py-lg-5">
-        <div class="row g-4">
-            <aside class="col-12 col-xl-3">
-                <div class="dashboard-card brand-panel p-4 mb-4">
-                    <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
-                        <div>
-                            <span class="section-kicker">ocompose</span>
-                            <h1 class="display-title mt-2 mb-3">Compose stacks without babysitting `.env` files.</h1>
-                            <p class="text-secondary mb-0">Create instances, adjust runtime settings, and run lifecycle actions from a single control surface.</p>
-                        </div>
-                        <div class="brand-orb"><i class="bi bi-boxes"></i></div>
-                    </div>
-                    <div class="quick-tips">
-                        <div class="tip-pill"><i class="bi bi-lightning-charge"></i><span>Fast instance switching</span></div>
-                        <div class="tip-pill"><i class="bi bi-sliders2"></i><span>Live config editing</span></div>
-                        <div class="tip-pill"><i class="bi bi-hdd-network"></i><span>One-click runtime actions</span></div>
-                    </div>
-                </div>
+    <div class="admin-shell container-fluid px-3 px-lg-4 py-3 py-lg-4">
+        <header class="dashboard-card command-header mb-4">
+            <div class="command-header__copy">
+                <span class="section-kicker">ocompose / admin deck</span>
+                <h1 class="command-title">Run the fleet from one board.</h1>
+                <p class="command-subtitle">Select an instance, rewire its stack, and launch actions without jumping through config files or terminals.</p>
+            </div>
+            <div class="command-header__actions">
+                <div class="command-badge"><i class="bi bi-shield-lock"></i><span>secured session</span></div>
+                <button id="logout-button" type="button" class="btn btn-outline-light btn-sm rounded-pill px-3"><i class="bi bi-box-arrow-right me-1"></i>Logout</button>
+            </div>
+        </header>
 
-                <form id="create-form" class="dashboard-card p-4 mb-4">
-                    <div class="d-flex align-items-center gap-2 mb-3">
-                        <div class="section-icon"><i class="bi bi-plus-square"></i></div>
+        <div class="row g-4 align-items-start">
+            <aside class="col-12 col-xxl-3">
+                <div class="dashboard-card fleet-panel p-3 p-lg-4 mb-4">
+                    <div class="fleet-panel__head mb-4">
                         <div>
-                            <h2 class="section-title mb-0">New instance</h2>
-                            <p class="section-copy mb-0">Bootstrap a new stack with the default template.</p>
-                        </div>
-                    </div>
-                    <label for="new-instance-name" class="form-label subtle-label">Instance name</label>
-                    <div class="input-group input-group-lg">
-                        <span class="input-group-text bg-white border-0"><i class="bi bi-terminal"></i></span>
-                        <input id="new-instance-name" name="name" class="form-control border-0 shadow-none" type="text" placeholder="client-a" autocomplete="off" required>
-                        <button class="btn btn-success px-4" type="submit">Create</button>
-                    </div>
-                    <div class="form-text mt-3">Use letters, numbers, hyphens, or underscores.</div>
-                </form>
-
-                <section class="dashboard-card p-4 sidebar-panel">
-                    <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
-                        <div>
-                            <h2 class="section-title mb-1">Instances</h2>
-                            <p class="section-copy mb-0">Pick a target and tune it from the right panel.</p>
+                            <span class="section-kicker section-kicker--dark">Fleet</span>
+                            <h2 class="section-title section-title--xl mb-1">Instance rail</h2>
+                            <p class="section-copy mb-0">Switch context fast and keep the whole stack map visible.</p>
                         </div>
                         <button id="refresh-button" type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3">Refresh</button>
                     </div>
+
+                    <form id="create-form" class="create-instance-card mb-4">
+                        <label for="new-instance-name" class="form-label subtle-label">New instance</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text border-0 bg-transparent"><i class="bi bi-plus-circle"></i></span>
+                            <input id="new-instance-name" name="name" class="form-control border-0 shadow-none" type="text" placeholder="client-a" autocomplete="off" required>
+                        </div>
+                        <div class="d-grid mt-3">
+                            <button class="btn btn-dark btn-lg" type="submit">Create stack</button>
+                        </div>
+                        <p class="form-text mb-0 mt-3">Names accept letters, numbers, hyphens, and underscores.</p>
+                    </form>
+
+                    <div class="mini-telemetry mb-4">
+                        <div class="mini-telemetry__item">
+                            <span>Live app</span>
+                            <strong id="hero-app-port">-</strong>
+                        </div>
+                        <div class="mini-telemetry__item">
+                            <span>MySQL</span>
+                            <strong id="hero-mysql-port">-</strong>
+                        </div>
+                        <div class="mini-telemetry__item">
+                            <span>SSH</span>
+                            <strong id="hero-ssh-port">-</strong>
+                        </div>
+                    </div>
+
                     <div id="instance-list" class="instance-list"></div>
-                </section>
+                </div>
             </aside>
 
-            <main class="col-12 col-xl-9">
-                <section class="dashboard-card hero-panel p-4 p-lg-5 mb-4">
-                    <div class="row g-4 align-items-end">
-                        <div class="col-lg-8">
-                            <span class="section-kicker">Admin UI</span>
+            <main class="col-12 col-xxl-9">
+                <section class="dashboard-card selected-instance p-4 p-lg-5 mb-4">
+                    <div class="row g-4 align-items-start">
+                        <div class="col-xl-7">
+                            <span class="section-kicker section-kicker--dark">Selected target</span>
                             <div class="d-flex flex-wrap align-items-center gap-3 mt-2 mb-3">
-                                <h2 id="instance-title" class="hero-title mb-0">Select an instance</h2>
+                                <h2 id="instance-title" class="selected-instance__title mb-0">Select an instance</h2>
                                 <span id="status-chip" class="status-chip idle">idle</span>
                             </div>
-                            <p id="instance-subtitle" class="hero-copy mb-0">The form edits the same .env file used by the CLI and Docker Compose.</p>
+                            <p id="instance-subtitle" class="selected-instance__copy mb-0">The form edits the same .env file used by the CLI and Docker Compose.</p>
                         </div>
-                        <div class="col-lg-4">
-                            <div class="hero-stats row g-3">
-                                <div class="col-4">
-                                    <div class="hero-stat-tile">
-                                        <span class="hero-stat-label">App</span>
-                                        <strong id="hero-app-port">-</strong>
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="hero-stat-tile">
-                                        <span class="hero-stat-label">MySQL</span>
-                                        <strong id="hero-mysql-port">-</strong>
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="hero-stat-tile">
-                                        <span class="hero-stat-label">SSH</span>
-                                        <strong id="hero-ssh-port">-</strong>
-                                    </div>
-                                </div>
+                        <div class="col-xl-5">
+                            <div class="endpoint-stack">
+                                <article class="endpoint-tile">
+                                    <span class="endpoint-tile__label">Application</span>
+                                    <a id="app-link" class="endpoint-tile__value" href="#" target="_blank" rel="noreferrer">Not available</a>
+                                </article>
+                                <article class="endpoint-tile">
+                                    <span class="endpoint-tile__label">phpMyAdmin</span>
+                                    <a id="pma-link" class="endpoint-tile__value" href="#" target="_blank" rel="noreferrer">Not available</a>
+                                </article>
+                                <article class="endpoint-tile">
+                                    <span class="endpoint-tile__label">SSH target</span>
+                                    <p id="ssh-target" class="endpoint-tile__value mb-0">Not available</p>
+                                </article>
                             </div>
                         </div>
-                    </div>
-                </section>
-
-                <section class="row g-4 mb-4">
-                    <div class="col-md-4">
-                        <article class="dashboard-card metric-panel p-4 h-100">
-                            <div class="metric-icon"><i class="bi bi-globe2"></i></div>
-                            <p class="metric-label mb-2">Application URL</p>
-                            <a id="app-link" class="metric-link" href="#" target="_blank" rel="noreferrer">Not available</a>
-                        </article>
-                    </div>
-                    <div class="col-md-4">
-                        <article class="dashboard-card metric-panel p-4 h-100">
-                            <div class="metric-icon"><i class="bi bi-database"></i></div>
-                            <p class="metric-label mb-2">phpMyAdmin</p>
-                            <a id="pma-link" class="metric-link" href="#" target="_blank" rel="noreferrer">Not available</a>
-                        </article>
-                    </div>
-                    <div class="col-md-4">
-                        <article class="dashboard-card metric-panel p-4 h-100">
-                            <div class="metric-icon"><i class="bi bi-terminal-dash"></i></div>
-                            <p class="metric-label mb-2">SSH target</p>
-                            <p id="ssh-target" class="metric-link mb-0">Not available</p>
-                        </article>
                     </div>
                 </section>
 
                 <form id="config-form">
                     <div class="row g-4">
-                        <div class="col-12 col-xxl-7">
-                            <section class="dashboard-card p-4 p-lg-5 mb-4">
-                                <div class="d-flex align-items-center gap-2 mb-4">
-                                    <div class="section-icon"><i class="bi bi-toggles2"></i></div>
+                        <div class="col-12 col-xl-8">
+                            <section class="dashboard-card config-module p-4 p-lg-5 mb-4">
+                                <div class="module-header mb-4">
+                                    <div class="module-icon"><i class="bi bi-cpu"></i></div>
                                     <div>
-                                        <h2 class="section-title mb-0">Service toggles</h2>
-                                        <p class="section-copy mb-0">Turn major stack components on or off before starting the instance.</p>
+                                        <span class="section-kicker section-kicker--dark">Runtime matrix</span>
+                                        <h2 class="section-title section-title--xl mb-1">Service controls</h2>
+                                        <p class="section-copy mb-0">Shape what actually comes up when the instance starts.</p>
                                     </div>
                                 </div>
-                                <div class="service-grid">
-                                    <label class="service-toggle-card form-check form-switch">
+                                <div class="runtime-grid">
+                                    <label class="runtime-card form-check form-switch">
                                         <div>
-                                            <span class="service-title">PHP stack</span>
-                                            <small class="d-block text-secondary">Nginx + PHP-FPM app layer</small>
+                                            <span class="runtime-card__title">PHP application layer</span>
+                                            <small class="d-block text-secondary">Enable the Nginx and PHP-FPM pair that exposes your app.</small>
                                         </div>
                                         <input class="form-check-input" type="checkbox" role="switch" name="PHP_ENABLED">
                                     </label>
-                                    <label class="service-toggle-card form-check form-switch">
+                                    <label class="runtime-card form-check form-switch">
                                         <div>
-                                            <span class="service-title">MySQL</span>
-                                            <small class="d-block text-secondary">Database container and port exposure</small>
+                                            <span class="runtime-card__title">MySQL service</span>
+                                            <small class="d-block text-secondary">Bring up the database container and publish its port.</small>
                                         </div>
                                         <input class="form-check-input" type="checkbox" role="switch" name="MYSQL_ENABLED">
                                     </label>
-                                    <label class="service-toggle-card form-check form-switch">
+                                    <label class="runtime-card form-check form-switch">
                                         <div>
-                                            <span class="service-title">phpMyAdmin</span>
-                                            <small class="d-block text-secondary">Browser-based MySQL administration</small>
+                                            <span class="runtime-card__title">phpMyAdmin access</span>
+                                            <small class="d-block text-secondary">Expose a browser admin surface for the MySQL instance.</small>
                                         </div>
                                         <input class="form-check-input" type="checkbox" role="switch" name="PHPMYADMIN_ENABLED">
                                     </label>
                                 </div>
                             </section>
 
-                            <section class="dashboard-card p-4 p-lg-5 mb-4">
-                                <div class="d-flex align-items-center gap-2 mb-4">
-                                    <div class="section-icon"><i class="bi bi-diagram-3"></i></div>
+                            <section class="dashboard-card config-module p-4 p-lg-5 mb-4">
+                                <div class="module-header mb-4">
+                                    <div class="module-icon"><i class="bi bi-broadcast-pin"></i></div>
                                     <div>
-                                        <h2 class="section-title mb-0">Ports and runtime</h2>
-                                        <p class="section-copy mb-0">Control exposed ports and core service versions.</p>
+                                        <span class="section-kicker section-kicker--dark">Network and versions</span>
+                                        <h2 class="section-title section-title--xl mb-1">Ports, engines, extensions</h2>
+                                        <p class="section-copy mb-0">Tune what the host sees and which service versions are built into the stack.</p>
                                     </div>
                                 </div>
-                                <div class="row g-3">
+                                <div class="row g-3 g-lg-4">
                                     <div class="col-md-6">
                                         <label class="form-label subtle-label">App port</label>
                                         <input class="form-control form-control-lg" type="number" name="APP_PORT">
@@ -195,83 +175,80 @@
                             </section>
                         </div>
 
-                        <div class="col-12 col-xxl-5">
-                            <section class="dashboard-card p-4 p-lg-5 mb-4">
-                                <div class="d-flex align-items-center gap-2 mb-4">
-                                    <div class="section-icon"><i class="bi bi-person-workspace"></i></div>
+                        <div class="col-12 col-xl-4">
+                            <section class="dashboard-card config-module side-module p-4 mb-4">
+                                <div class="module-header module-header--compact mb-4">
+                                    <div class="module-icon"><i class="bi bi-person-gear"></i></div>
                                     <div>
-                                        <h2 class="section-title mb-0">Workspace identity</h2>
-                                        <p class="section-copy mb-0">Tune the Linux user and shell inside the workspace container.</p>
+                                        <span class="section-kicker section-kicker--dark">Workspace profile</span>
+                                        <h2 class="section-title mb-1">Identity</h2>
+                                        <p class="section-copy mb-0">Map user, shell, and IDs inside the workspace container.</p>
                                     </div>
                                 </div>
                                 <div class="row g-3">
-                                    <div class="col-md-6">
+                                    <div class="col-sm-6 col-xl-12">
                                         <label class="form-label subtle-label">User</label>
-                                        <input class="form-control form-control-lg" type="text" name="WORKSPACE_USER">
+                                        <input class="form-control" type="text" name="WORKSPACE_USER">
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-sm-6 col-xl-12">
                                         <label class="form-label subtle-label">Shell</label>
-                                        <input class="form-control form-control-lg" type="text" name="WORKSPACE_SHELL">
+                                        <input class="form-control" type="text" name="WORKSPACE_SHELL">
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-sm-6 col-xl-12">
                                         <label class="form-label subtle-label">UID</label>
-                                        <input class="form-control form-control-lg" type="number" name="WORKSPACE_UID">
+                                        <input class="form-control" type="number" name="WORKSPACE_UID">
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-sm-6 col-xl-12">
                                         <label class="form-label subtle-label">GID</label>
-                                        <input class="form-control form-control-lg" type="number" name="WORKSPACE_GID">
+                                        <input class="form-control" type="number" name="WORKSPACE_GID">
                                     </div>
                                 </div>
                             </section>
 
-                            <section class="dashboard-card p-4 p-lg-5 mb-4">
-                                <div class="d-flex align-items-center gap-2 mb-4">
-                                    <div class="section-icon"><i class="bi bi-server"></i></div>
+                            <section class="dashboard-card config-module side-module p-4 mb-4">
+                                <div class="module-header module-header--compact mb-4">
+                                    <div class="module-icon"><i class="bi bi-database-lock"></i></div>
                                     <div>
-                                        <h2 class="section-title mb-0">Database credentials</h2>
-                                        <p class="section-copy mb-0">Manage the database name and the app/root credentials for this instance.</p>
+                                        <span class="section-kicker section-kicker--dark">Database profile</span>
+                                        <h2 class="section-title mb-1">Credentials</h2>
+                                        <p class="section-copy mb-0">Keep the app database, user, and root access in one place.</p>
                                     </div>
                                 </div>
                                 <div class="row g-3">
                                     <div class="col-12">
                                         <label class="form-label subtle-label">Database name</label>
-                                        <input class="form-control form-control-lg" type="text" name="MYSQL_DATABASE">
+                                        <input class="form-control" type="text" name="MYSQL_DATABASE">
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-12">
                                         <label class="form-label subtle-label">Database user</label>
-                                        <input class="form-control form-control-lg" type="text" name="MYSQL_USER">
+                                        <input class="form-control" type="text" name="MYSQL_USER">
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-12">
                                         <label class="form-label subtle-label">Database password</label>
-                                        <input class="form-control form-control-lg" type="text" name="MYSQL_PASSWORD">
+                                        <input class="form-control" type="text" name="MYSQL_PASSWORD">
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label subtle-label">Root password</label>
-                                        <input class="form-control form-control-lg" type="text" name="MYSQL_ROOT_PASSWORD">
+                                        <input class="form-control" type="text" name="MYSQL_ROOT_PASSWORD">
                                     </div>
                                 </div>
                             </section>
 
-                            <section class="dashboard-card p-4 p-lg-5 sticky-actions">
-                                <div class="d-flex align-items-center gap-2 mb-4">
-                                    <div class="section-icon"><i class="bi bi-play-circle"></i></div>
+                            <section class="dashboard-card action-dock p-4 sticky-actions">
+                                <div class="module-header module-header--compact mb-4">
+                                    <div class="module-icon"><i class="bi bi-rocket-takeoff"></i></div>
                                     <div>
-                                        <h2 class="section-title mb-0">Actions</h2>
-                                        <p class="section-copy mb-0">Save config first, then run stack operations when you are ready.</p>
+                                        <span class="section-kicker section-kicker--dark">Action dock</span>
+                                        <h2 class="section-title mb-1">Deploy, stop, rebuild</h2>
+                                        <p class="section-copy mb-0">Save the config, then run the stack lifecycle from the same surface.</p>
                                     </div>
                                 </div>
                                 <div class="d-grid gap-3">
-                                    <button id="save-button" class="btn btn-success btn-lg" type="submit"><i class="bi bi-save me-2"></i>Save configuration</button>
-                                    <div class="row g-2">
-                                        <div class="col-sm-4 col-lg-12 col-xl-4">
-                                            <button id="start-button" class="btn btn-dark w-100" type="button" data-action="up"><i class="bi bi-play-fill me-1"></i>Start</button>
-                                        </div>
-                                        <div class="col-sm-4 col-lg-12 col-xl-4">
-                                            <button id="stop-button" class="btn btn-outline-dark w-100" type="button" data-action="down"><i class="bi bi-stop-fill me-1"></i>Stop</button>
-                                        </div>
-                                        <div class="col-sm-4 col-lg-12 col-xl-4">
-                                            <button id="restart-button" class="btn btn-outline-dark w-100" type="button" data-action="restart"><i class="bi bi-arrow-repeat me-1"></i>Restart</button>
-                                        </div>
+                                    <button id="save-button" class="btn btn-dark btn-lg" type="submit"><i class="bi bi-save2 me-2"></i>Save configuration</button>
+                                    <div class="action-dock__grid">
+                                        <button id="start-button" class="btn btn-success" type="button" data-action="up"><i class="bi bi-play-fill me-1"></i>Start</button>
+                                        <button id="stop-button" class="btn btn-outline-dark" type="button" data-action="down"><i class="bi bi-stop-fill me-1"></i>Stop</button>
+                                        <button id="restart-button" class="btn btn-outline-dark" type="button" data-action="restart"><i class="bi bi-arrow-clockwise me-1"></i>Restart</button>
                                     </div>
                                     <button id="destroy-button" class="btn btn-outline-danger" type="button" data-action="destroy"><i class="bi bi-trash3 me-2"></i>Destroy instance</button>
                                 </div>

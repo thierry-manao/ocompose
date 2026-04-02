@@ -6,6 +6,9 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 INSTANCES_DIR="$PROJECT_DIR/instances"
 UI_PID_FILE="$PROJECT_DIR/.ocompose-ui.pid"
 UI_LOG_FILE="$PROJECT_DIR/.ocompose-ui.log"
+UI_AUTH_FILE="$PROJECT_DIR/.ocompose-ui.auth"
+CLI_WRAPPER_FILE="$PROJECT_DIR/ocompose"
+CLI_WRAPPER_CMD_FILE="$PROJECT_DIR/ocompose.cmd"
 
 # ── Colors ──
 RED='\033[0;31m'
@@ -72,6 +75,160 @@ is_ui_running() {
 
     rm -f "$UI_PID_FILE"
     return 1
+}
+
+default_cli_bin_dir() {
+    if [[ -n "${OCOMPOSE_BIN_DIR:-}" ]]; then
+        echo "$OCOMPOSE_BIN_DIR"
+        return
+    fi
+
+    echo "$HOME/.local/bin"
+}
+
+resolve_cli_bin_dir() {
+    local provided_dir="${1:-}"
+
+    if [[ -n "$provided_dir" ]]; then
+        echo "$provided_dir"
+        return
+    fi
+
+    default_cli_bin_dir
+}
+
+install_wrapper_file() {
+    local source_file="$1"
+    local target_file="$2"
+
+    rm -f "$target_file"
+    if ln -s "$source_file" "$target_file" 2>/dev/null; then
+        return 0
+    fi
+
+    cp "$source_file" "$target_file"
+}
+
+create_cli_launcher() {
+    local target_file="$1"
+
+    cat > "$target_file" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec "$PROJECT_DIR/scripts/ocompose.sh" "\$@"
+EOF
+}
+
+create_cli_cmd_launcher() {
+    local target_file="$1"
+    local project_dir_windows
+    project_dir_windows="$(cygpath -w "$PROJECT_DIR")"
+
+    cat > "$target_file" <<EOF
+@echo off
+setlocal
+bash "$project_dir_windows\\scripts\\ocompose.sh" %*
+EOF
+}
+
+path_contains_dir() {
+    local dir_to_match="$1"
+    local normalized_target
+    normalized_target="$(cd "$dir_to_match" 2>/dev/null && pwd || echo "$dir_to_match")"
+
+    IFS=':' read -r -a path_parts <<< "${PATH:-}"
+    for path_entry in "${path_parts[@]}"; do
+        [[ -z "$path_entry" ]] && continue
+        local normalized_entry
+        normalized_entry="$(cd "$path_entry" 2>/dev/null && pwd || echo "$path_entry")"
+        if [[ "$normalized_entry" == "$normalized_target" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+generate_ui_password() {
+    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 24
+}
+
+ensure_ui_auth_file() {
+    if [[ -f "$UI_AUTH_FILE" ]]; then
+        return 0
+    fi
+
+    local username="${OCOMPOSE_UI_USERNAME:-admin}"
+    local password="${OCOMPOSE_UI_PASSWORD:-}"
+
+    if [[ -z "$password" ]]; then
+        password="$(generate_ui_password)"
+    fi
+
+    cat > "$UI_AUTH_FILE" <<EOF
+OCOMPOSE_UI_USERNAME=$username
+OCOMPOSE_UI_PASSWORD=$password
+EOF
+}
+
+load_ui_auth() {
+    ensure_ui_auth_file
+
+    set -a
+    # shellcheck disable=SC1090
+    source "$UI_AUTH_FILE"
+    set +a
+}
+
+cmd_install_cli() {
+    local bin_dir
+    bin_dir="$(resolve_cli_bin_dir "${1:-}")"
+    local target_file="$bin_dir/ocompose"
+
+    mkdir -p "$bin_dir"
+    chmod +x "$CLI_WRAPPER_FILE" "$PROJECT_DIR/scripts/ocompose.sh"
+    create_cli_launcher "$target_file"
+    chmod +x "$target_file"
+
+    if command -v cygpath >/dev/null 2>&1; then
+        create_cli_cmd_launcher "$bin_dir/ocompose.cmd"
+    elif [[ -f "$CLI_WRAPPER_CMD_FILE" ]]; then
+        install_wrapper_file "$CLI_WRAPPER_CMD_FILE" "$bin_dir/ocompose.cmd"
+    fi
+
+    echo -e "${GREEN}✅ ocompose CLI installed.${NC}"
+    echo -e "   Command: ocompose"
+    echo -e "   Location: $target_file"
+
+    if path_contains_dir "$bin_dir"; then
+        echo -e "   PATH: already includes $bin_dir"
+    else
+        echo -e "${YELLOW}⚠  Add this directory to PATH to use 'ocompose' everywhere:${NC}"
+        echo -e "   $bin_dir"
+    fi
+}
+
+cmd_uninstall_cli() {
+    local bin_dir
+    bin_dir="$(resolve_cli_bin_dir "${1:-}")"
+    local removed_any="false"
+
+    if [[ -f "$bin_dir/ocompose" || -L "$bin_dir/ocompose" ]]; then
+        rm -f "$bin_dir/ocompose"
+        removed_any="true"
+    fi
+
+    if [[ -f "$bin_dir/ocompose.cmd" || -L "$bin_dir/ocompose.cmd" ]]; then
+        rm -f "$bin_dir/ocompose.cmd"
+        removed_any="true"
+    fi
+
+    if [[ "$removed_any" == "true" ]]; then
+        echo -e "${GREEN}✅ ocompose CLI removed from $bin_dir.${NC}"
+    else
+        echo -e "${YELLOW}⚠  No installed ocompose CLI was found in $bin_dir.${NC}"
+    fi
 }
 
 ensure_instance_files() {
@@ -199,7 +356,22 @@ cmd_ui() {
     fi
 
     if [[ $# -gt 0 ]]; then
-        port="$1"
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --username)
+                    export OCOMPOSE_UI_USERNAME="$2"
+                    shift 2
+                    ;;
+                --password)
+                    export OCOMPOSE_UI_PASSWORD="$2"
+                    shift 2
+                    ;;
+                *)
+                    port="$1"
+                    shift
+                    ;;
+            esac
+        done
     fi
 
     if ! command -v node >/dev/null 2>&1; then
@@ -218,8 +390,14 @@ cmd_ui() {
                 return 0
             fi
 
+            load_ui_auth
+
             echo -e "${CYAN}Launching ocompose web UI in the background on http://localhost:${port}${NC}"
-            nohup env OCOMPOSE_UI_PORT="$port" node "$PROJECT_DIR/web-ui/server.js" > "$UI_LOG_FILE" 2>&1 &
+            nohup env \
+                OCOMPOSE_UI_PORT="$port" \
+                OCOMPOSE_UI_USERNAME="$OCOMPOSE_UI_USERNAME" \
+                OCOMPOSE_UI_PASSWORD="$OCOMPOSE_UI_PASSWORD" \
+                node "$PROJECT_DIR/web-ui/server.js" > "$UI_LOG_FILE" 2>&1 &
             local ui_pid=$!
             echo "$ui_pid" > "$UI_PID_FILE"
             sleep 1
@@ -229,6 +407,9 @@ cmd_ui() {
                 echo -e "   URL:  http://localhost:${port}"
                 echo -e "   PID:  ${ui_pid}"
                 echo -e "   Log:  $UI_LOG_FILE"
+                echo -e "   User: ${OCOMPOSE_UI_USERNAME}"
+                echo -e "   Pass: ${OCOMPOSE_UI_PASSWORD}"
+                echo -e "   Auth: $UI_AUTH_FILE"
                 echo -e "   Stop: ./scripts/ocompose.sh ui stop"
                 return 0
             fi
@@ -254,9 +435,12 @@ cmd_ui() {
             if is_ui_running; then
                 local ui_pid
                 ui_pid="$(tr -d '[:space:]' < "$UI_PID_FILE")"
+                load_ui_auth
                 echo -e "${GREEN}✅ ocompose web UI is running.${NC}"
                 echo -e "   PID: ${ui_pid}"
                 echo -e "   Log: $UI_LOG_FILE"
+                echo -e "   User: ${OCOMPOSE_UI_USERNAME}"
+                echo -e "   Auth: $UI_AUTH_FILE"
             else
                 echo -e "${YELLOW}⚠  ocompose web UI is not running.${NC}"
             fi
@@ -376,6 +560,9 @@ cmd_help() {
     echo "       ocompose.sh ui [start] [port]"
     echo "       ocompose.sh ui stop"
     echo "       ocompose.sh ui status"
+    echo "       ocompose.sh ui [port] --username <name> --password <pass>"
+    echo "       ocompose.sh install-cli [bin-dir]"
+    echo "       ocompose.sh uninstall-cli [bin-dir]"
     echo ""
     echo "Commands:"
     echo "  init       Create a new instance"
@@ -388,6 +575,8 @@ cmd_help() {
     echo "  destroy    Remove instance entirely"
     echo "  list       List all instances"
     echo "  ui         Manage the web admin UI"
+    echo "  install-cli     Install the 'ocompose' command"
+    echo "  uninstall-cli   Remove the installed 'ocompose' command"
     echo "  help       Show this help"
     echo ""
     echo "Examples:"
@@ -398,6 +587,8 @@ cmd_help() {
     echo "  ocompose.sh list                # See all instances"
     echo "  ocompose.sh ui                  # Start the web admin in background"
     echo "  ocompose.sh ui stop             # Stop the web admin"
+    echo "  ocompose.sh ui 8787 --username admin --password secret"
+    echo "  ocompose.sh install-cli         # Install 'ocompose' into ~/.local/bin"
     echo ""
 }
 
@@ -410,6 +601,8 @@ case "${1:-help}" in
     list) cmd_list; exit 0 ;;
     help) cmd_help; exit 0 ;;
     ui) shift; cmd_ui "$@"; exit 0 ;;
+    install-cli) shift; cmd_install_cli "$@"; exit 0 ;;
+    uninstall-cli) shift; cmd_uninstall_cli "$@"; exit 0 ;;
 esac
 
 # Instance-specific commands
