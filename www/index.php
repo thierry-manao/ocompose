@@ -1,5 +1,11 @@
 <?php
 $project = getenv('PROJECT_NAME') ?: 'ocompose';
+$mysqlEnabled = filter_var(getenv('MYSQL_ENABLED') ?: 'true', FILTER_VALIDATE_BOOLEAN);
+$phpMyAdminEnabled = filter_var(getenv('PHPMYADMIN_ENABLED') ?: 'true', FILTER_VALIDATE_BOOLEAN);
+$phpMyAdminPort = getenv('PHPMYADMIN_PORT') ?: '8080';
+$httpHost = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$requestHost = parse_url('http://' . $httpHost, PHP_URL_HOST) ?: 'localhost';
+
 echo "<h1>🐳 $project is running!</h1>";
 echo "<p><strong>PHP Version:</strong> " . phpversion() . "</p>";
 echo "<p><strong>Server Time:</strong> " . date('Y-m-d H:i:s') . "</p>";
@@ -10,12 +16,21 @@ $pass = getenv('MYSQL_PASSWORD') ?: 'secret';
 $db   = getenv('MYSQL_DATABASE') ?: 'app_db';
 
 echo "<h2>MySQL Connection</h2>";
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$db", $user, $pass);
-    echo "<p style='color:green;'>✅ Connected to MySQL ($host / $db)</p>";
-} catch (PDOException $e) {
-    echo "<p style='color:red;'>❌ " . $e->getMessage() . "</p>";
+if (!$mysqlEnabled) {
+    echo "<p style='color:#6b7280;'>MySQL is disabled for this instance.</p>";
+} else {
+    try {
+        $pdo = new PDO("mysql:host=$host;dbname=$db", $user, $pass);
+        echo "<p style='color:green;'>✅ Connected to MySQL ($host / $db)</p>";
+    } catch (PDOException $e) {
+        echo "<p style='color:red;'>❌ " . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . "</p>";
+    }
 }
 
-echo "<hr><p><a href='http://localhost:8080'>Open phpMyAdmin →</a></p>";
+if ($phpMyAdminEnabled) {
+    $phpMyAdminUrl = sprintf('http://%s:%s', $requestHost, $phpMyAdminPort);
+    echo "<hr><p><a href='" . htmlspecialchars($phpMyAdminUrl, ENT_QUOTES, 'UTF-8') . "'>Open phpMyAdmin →</a></p>";
+} else {
+    echo "<hr><p style='color:#6b7280;'>phpMyAdmin is disabled for this instance.</p>";
+}
 ?>

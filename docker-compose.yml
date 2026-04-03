@@ -31,6 +31,15 @@ services:
         PHP_EXTENSIONS: ${PHP_EXTENSIONS:-"pdo pdo_mysql mysqli mbstring zip gd curl intl"}
     container_name: ${PROJECT_NAME}_php
     hostname: ${PROJECT_NAME}-php
+    environment:
+      PROJECT_NAME: ${PROJECT_NAME}
+      MYSQL_ENABLED: ${MYSQL_ENABLED:-true}
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-app_db}
+      MYSQL_USER: ${MYSQL_USER:-app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-secret}
+      PHPMYADMIN_ENABLED: ${PHPMYADMIN_ENABLED:-true}
+      PHPMYADMIN_PORT: ${PHPMYADMIN_PORT:-8080}
     volumes:
       - ./instances/${PROJECT_NAME}/www:/var/www/html
       - ./instances/${PROJECT_NAME}/config/php/php.ini:/usr/local/etc/php/conf.d/custom.ini
