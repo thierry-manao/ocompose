@@ -47,6 +47,8 @@ const fieldNames = [
     'WORKSPACE_SHELL',
     'GIT_REPO',
     'GIT_BRANCH',
+    'GIT_HTTP_USERNAME',
+    'GIT_HTTP_PASSWORD',
     'PHP_ENABLED',
     'PHP_VERSION',
     'PHP_EXTENSIONS',

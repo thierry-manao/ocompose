@@ -62,6 +62,43 @@ is_ocompose_placeholder_index() {
     grep -q "phpversion()" "$index_file" || return 1
 }
 
+is_http_repo_url() {
+    local repo_url="$1"
+
+    [[ "$repo_url" =~ ^https?:// ]]
+}
+
+build_git_http_auth_header() {
+    local username="${GIT_HTTP_USERNAME:-}"
+    local password="${GIT_HTTP_PASSWORD:-}"
+
+    if [[ -z "$username" || -z "$password" ]]; then
+        echo -e "${RED}✗ Both GIT_HTTP_USERNAME and GIT_HTTP_PASSWORD must be set for non-interactive HTTPS git auth.${NC}"
+        exit 1
+    fi
+
+    printf '%s' "$username:$password" | base64 | tr -d '\r\n'
+}
+
+run_git_repo_command() {
+    local repo_url="$1"
+    shift
+
+    if is_http_repo_url "$repo_url" && [[ -n "${GIT_HTTP_USERNAME:-}" || -n "${GIT_HTTP_PASSWORD:-}" ]]; then
+        local auth_header
+        auth_header="$(build_git_http_auth_header)"
+        git \
+            -c credential.helper= \
+            -c core.askPass= \
+            -c credential.interactive=never \
+            -c "http.extraHeader=Authorization: Basic $auth_header" \
+            "$@"
+        return
+    fi
+
+    git "$@"
+}
+
 workspace_has_only_default_index() {
     local workspace_dir="$1"
     local index_file="$workspace_dir/index.php"
@@ -94,6 +131,7 @@ prepare_workspace_for_clone() {
 checkout_instance_branch() {
     local workspace_dir="$1"
     local branch="$2"
+    local repo_url="$3"
 
     [[ -z "$branch" ]] && return 0
 
@@ -103,7 +141,7 @@ checkout_instance_branch() {
     fi
 
     if git -C "$workspace_dir" remote get-url origin >/dev/null 2>&1; then
-        git -C "$workspace_dir" fetch origin "$branch" --prune
+        run_git_repo_command "$repo_url" -C "$workspace_dir" fetch origin "$branch" --prune
         git -C "$workspace_dir" checkout -B "$branch" --track "origin/$branch"
         return 0
     fi
@@ -154,15 +192,15 @@ bootstrap_instance_git_repo() {
 
         echo -e "${CYAN}📥 Cloning repository for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
         if [[ -n "$branch" ]]; then
-            git clone --branch "$branch" --single-branch "$repo_url" "$workspace_dir"
+            run_git_repo_command "$repo_url" clone --branch "$branch" --single-branch "$repo_url" "$workspace_dir"
         else
-            git clone "$repo_url" "$workspace_dir"
+            run_git_repo_command "$repo_url" clone "$repo_url" "$workspace_dir"
         fi
     fi
 
     if [[ -n "$branch" ]]; then
         echo -e "${CYAN}🌿 Switching '${BOLD}$INSTANCE${NC}${CYAN}' to branch '${BOLD}$branch${NC}${CYAN}'...${NC}"
-        checkout_instance_branch "$workspace_dir" "$branch"
+        checkout_instance_branch "$workspace_dir" "$branch" "$repo_url"
     fi
 }
 

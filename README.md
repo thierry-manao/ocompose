@@ -230,9 +230,13 @@ Git bootstrap on startup:
 ```env
 GIT_REPO=https://github.com/example/project.git
 GIT_BRANCH=main
+GIT_HTTP_USERNAME=
+GIT_HTTP_PASSWORD=
 ```
 
 When these values are set, `ocompose <instance> up` clones the repository into `instances/<name>/www` the first time, then checks out the configured branch on each start. Existing non-empty workspaces are left alone unless they only contain the default placeholder `index.php`.
+
+For private HTTPS repositories, you can optionally set `GIT_HTTP_USERNAME` and `GIT_HTTP_PASSWORD` so the host git clone runs non-interactively. For GitLab, prefer using a personal access token in `GIT_HTTP_PASSWORD` instead of your actual account password.
 
 Per-instance runtime config files are created automatically from the versioned defaults in `config/`:
 
