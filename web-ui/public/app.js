@@ -536,20 +536,9 @@ function renderDashboardInstances() {
                 <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-action="restart" data-dashboard-instance="${instance.name}">Redémarrer</button>
                 <button class="btn btn-sm btn-outline-danger" type="button" data-dashboard-action="destroy" data-dashboard-instance="${instance.name}">Détruire</button>
             </div>
-            <div class="dashboard-instance-card__links">
-                ${(appUrl || pmaUrl) ? `
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-dark dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-three-dots"></i> Ouvrir
-                        </button>
-                        <ul class="dropdown-menu">
-                            ${appUrl ? `<li><a class="dropdown-item" href="${appUrl}" target="_blank" rel="noreferrer"><i class="bi bi-box-arrow-up-right me-2"></i>Application</a></li>` : ''}
-                            ${pmaUrl ? `<li><a class="dropdown-item" href="${pmaUrl}" target="_blank" rel="noreferrer"><i class="bi bi-box-arrow-up-right me-2"></i>phpMyAdmin</a></li>` : ''}
-                        </ul>
-                    </div>
-                ` : ''}
-            </div>
             <div class="dashboard-instance-card__footer">
+                ${appUrl ? `<a class="btn btn-link p-0 dashboard-link-button" href="${appUrl}" target="_blank" rel="noreferrer">Ouvrir l'app</a>` : ''}
+                ${pmaUrl ? `<a class="btn btn-link p-0 dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">Ouvrir phpMyAdmin</a>` : ''}
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Ouvrir les paramètres</button>
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="shell" data-dashboard-instance="${instance.name}">Ouvrir la console</button>
             </div>
