@@ -256,6 +256,8 @@ When these values are set, `ocompose <instance> up` clones the repository into `
 
 For private HTTPS repositories, you can optionally set `GIT_HTTP_USERNAME` and `GIT_HTTP_PASSWORD` so the host git clone runs non-interactively. For GitLab, prefer using a personal access token in `GIT_HTTP_PASSWORD` instead of your actual account password.
 
+**Workspace permissions**: After cloning, the workspace is automatically set to `775` permissions to ensure PHP-FPM can write to directories like `writable/` in CodeIgniter or `storage/` in Laravel.
+
 Per-instance runtime config files are created automatically from the versioned defaults in `config/`:
 
 ```text
