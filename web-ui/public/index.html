@@ -163,185 +163,212 @@
                             </div>
                         </section>
 
-                        <div class="row g-4">
-                            <div class="col-12 col-xl-7">
-                                <section class="card-shell p-4 p-lg-5 mb-4">
-                                <div class="section-header mb-4">
-                                    <div class="section-icon"><i class="bi bi-toggles2"></i></div>
-                                    <div>
-                                        <p class="eyebrow eyebrow-dark mb-2">Services</p>
-                                        <h2 class="section-title mb-1">Toggle the stack</h2>
-                                        <p class="section-copy mb-0">Decide what actually boots for this instance.</p>
-                                    </div>
-                                </div>
-
-                                <div class="toggle-stack">
-                                    <label class="toggle-card form-check form-switch">
-                                        <div>
-                                            <span class="toggle-title">PHP application layer</span>
-                                            <small class="text-secondary d-block">Enable the Nginx and PHP-FPM side of the stack.</small>
-                                        </div>
-                                        <input class="form-check-input" type="checkbox" role="switch" name="PHP_ENABLED">
-                                    </label>
-                                    <label class="toggle-card form-check form-switch">
-                                        <div>
-                                            <span class="toggle-title">MySQL database</span>
-                                            <small class="text-secondary d-block">Start the database container and publish the port.</small>
-                                        </div>
-                                        <input class="form-check-input" type="checkbox" role="switch" name="MYSQL_ENABLED">
-                                    </label>
-                                    <label class="toggle-card form-check form-switch">
-                                        <div>
-                                            <span class="toggle-title">phpMyAdmin</span>
-                                            <small class="text-secondary d-block">Expose the browser admin interface for MySQL.</small>
-                                        </div>
-                                        <input class="form-check-input" type="checkbox" role="switch" name="PHPMYADMIN_ENABLED">
-                                    </label>
-                                </div>
-                            </section>
-
-                                <section class="card-shell p-4 p-lg-5 mb-4">
-                                <div class="section-header mb-4">
-                                    <div class="section-icon"><i class="bi bi-broadcast"></i></div>
-                                    <div>
-                                        <p class="eyebrow eyebrow-dark mb-2">Runtime</p>
-                                        <h2 class="section-title mb-1">Ports and versions</h2>
-                                        <p class="section-copy mb-0">Control what the host sees and what versions get built.</p>
-                                    </div>
-                                </div>
-
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label label-caps">App port</label>
-                                        <input class="form-control form-control-lg" type="number" name="APP_PORT">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label label-caps">Workspace SSH port</label>
-                                        <input class="form-control form-control-lg" type="number" name="WORKSPACE_SSH_PORT">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label label-caps">MySQL port</label>
-                                        <input class="form-control form-control-lg" type="number" name="MYSQL_PORT">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label label-caps">phpMyAdmin port</label>
-                                        <input class="form-control form-control-lg" type="number" name="PHPMYADMIN_PORT">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label label-caps">PHP version</label>
-                                        <input class="form-control form-control-lg" type="text" name="PHP_VERSION" placeholder="8.3">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label label-caps">MySQL version</label>
-                                        <input class="form-control form-control-lg" type="text" name="MYSQL_VERSION" placeholder="8.0">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label label-caps">PHP extensions</label>
-                                        <input class="form-control form-control-lg" type="text" name="PHP_EXTENSIONS" placeholder="pdo pdo_mysql mysqli mbstring zip gd curl intl">
-                                    </div>
-                                </div>
-                                </section>
+                        <section class="settings-tabs-shell card-shell p-3 p-lg-4 mb-4">
+                            <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+                                <button class="settings-tab-button active" type="button" data-settings-tab="stack">Stack</button>
+                                <button class="settings-tab-button" type="button" data-settings-tab="workspace">Workspace & Git</button>
+                                <button class="settings-tab-button" type="button" data-settings-tab="database">Database</button>
                             </div>
+                        </section>
 
-                            <div class="col-12 col-xl-5">
-                                <section class="card-shell p-4 mb-4">
-                                <div class="section-header mb-4">
-                                    <div class="section-icon"><i class="bi bi-person-workspace"></i></div>
-                                    <div>
-                                        <p class="eyebrow eyebrow-dark mb-2">Workspace</p>
-                                        <h2 class="section-title mb-1">Identity</h2>
-                                        <p class="section-copy mb-0">Set the Linux user and shell inside the workspace container.</p>
-                                    </div>
+                        <section class="settings-tab-panel is-active" data-settings-tab-panel="stack">
+                            <div class="row g-4">
+                                <div class="col-12 col-xxl-6">
+                                    <section class="card-shell p-4 p-lg-5 h-100">
+                                        <div class="section-header mb-4">
+                                            <div class="section-icon"><i class="bi bi-toggles2"></i></div>
+                                            <div>
+                                                <p class="eyebrow eyebrow-dark mb-2">Services</p>
+                                                <h2 class="section-title mb-1">Toggle the stack</h2>
+                                                <p class="section-copy mb-0">Decide what actually boots for this instance.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="toggle-stack">
+                                            <label class="toggle-card form-check form-switch">
+                                                <div>
+                                                    <span class="toggle-title">PHP application layer</span>
+                                                    <small class="text-secondary d-block">Enable the Nginx and PHP-FPM side of the stack.</small>
+                                                </div>
+                                                <input class="form-check-input" type="checkbox" role="switch" name="PHP_ENABLED">
+                                            </label>
+                                            <label class="toggle-card form-check form-switch">
+                                                <div>
+                                                    <span class="toggle-title">MySQL database</span>
+                                                    <small class="text-secondary d-block">Start the database container and publish the port.</small>
+                                                </div>
+                                                <input class="form-check-input" type="checkbox" role="switch" name="MYSQL_ENABLED">
+                                            </label>
+                                            <label class="toggle-card form-check form-switch">
+                                                <div>
+                                                    <span class="toggle-title">phpMyAdmin</span>
+                                                    <small class="text-secondary d-block">Expose the browser admin interface for MySQL.</small>
+                                                </div>
+                                                <input class="form-check-input" type="checkbox" role="switch" name="PHPMYADMIN_ENABLED">
+                                            </label>
+                                        </div>
+                                    </section>
                                 </div>
 
-                                <div class="row g-3">
-                                    <div class="col-sm-6 col-xl-12">
-                                        <label class="form-label label-caps">User</label>
-                                        <input class="form-control" type="text" name="WORKSPACE_USER">
-                                    </div>
-                                    <div class="col-sm-6 col-xl-12">
-                                        <label class="form-label label-caps">Shell</label>
-                                        <input class="form-control" type="text" name="WORKSPACE_SHELL">
-                                    </div>
-                                    <div class="col-sm-6 col-xl-12">
-                                        <label class="form-label label-caps">UID</label>
-                                        <input class="form-control" type="number" name="WORKSPACE_UID">
-                                    </div>
-                                    <div class="col-sm-6 col-xl-12">
-                                        <label class="form-label label-caps">GID</label>
-                                        <input class="form-control" type="number" name="WORKSPACE_GID">
-                                    </div>
-                                </div>
-                            </section>
+                                <div class="col-12 col-xxl-6">
+                                    <section class="card-shell p-4 p-lg-5 h-100">
+                                        <div class="section-header mb-4">
+                                            <div class="section-icon"><i class="bi bi-broadcast"></i></div>
+                                            <div>
+                                                <p class="eyebrow eyebrow-dark mb-2">Runtime</p>
+                                                <h2 class="section-title mb-1">Ports and versions</h2>
+                                                <p class="section-copy mb-0">Control what the host sees and what versions get built.</p>
+                                            </div>
+                                        </div>
 
-                                <section class="card-shell p-4 mb-4">
-                                <div class="section-header mb-4">
-                                    <div class="section-icon"><i class="bi bi-git"></i></div>
-                                    <div>
-                                        <p class="eyebrow eyebrow-dark mb-2">Git</p>
-                                        <h2 class="section-title mb-1">Bootstrap</h2>
-                                        <p class="section-copy mb-0">Clone a repo into the workspace and switch to a branch whenever the instance starts.</p>
-                                    </div>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">App port</label>
+                                                <input class="form-control form-control-lg" type="number" name="APP_PORT">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Workspace SSH port</label>
+                                                <input class="form-control form-control-lg" type="number" name="WORKSPACE_SSH_PORT">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">MySQL port</label>
+                                                <input class="form-control form-control-lg" type="number" name="MYSQL_PORT">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">phpMyAdmin port</label>
+                                                <input class="form-control form-control-lg" type="number" name="PHPMYADMIN_PORT">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">PHP version</label>
+                                                <input class="form-control form-control-lg" type="text" name="PHP_VERSION" placeholder="8.3">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">MySQL version</label>
+                                                <input class="form-control form-control-lg" type="text" name="MYSQL_VERSION" placeholder="8.0">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label label-caps">PHP extensions</label>
+                                                <input class="form-control form-control-lg" type="text" name="PHP_EXTENSIONS" placeholder="pdo pdo_mysql mysqli mbstring zip gd curl intl">
+                                            </div>
+                                        </div>
+                                    </section>
                                 </div>
-
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <label class="form-label label-caps">Repository URL</label>
-                                        <input class="form-control" type="text" name="GIT_REPO" placeholder="https://github.com/example/project.git">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label label-caps">Branch</label>
-                                        <input class="form-control" type="text" name="GIT_BRANCH" placeholder="main">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label label-caps">HTTP username</label>
-                                        <input class="form-control" type="text" name="GIT_HTTP_USERNAME" placeholder="gitlab-username">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label label-caps">HTTP password or token</label>
-                                        <input class="form-control" type="password" name="GIT_HTTP_PASSWORD" placeholder="GitLab PAT or password">
-                                    </div>
-                                </div>
-                            </section>
-
-                                <section class="card-shell p-4 mb-4">
-                                <div class="section-header mb-4">
-                                    <div class="section-icon"><i class="bi bi-database-lock"></i></div>
-                                    <div>
-                                        <p class="eyebrow eyebrow-dark mb-2">Database</p>
-                                        <h2 class="section-title mb-1">Credentials</h2>
-                                        <p class="section-copy mb-0">Edit the app database and user credentials in one place.</p>
-                                    </div>
-                                </div>
-
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <label class="form-label label-caps">Database name</label>
-                                        <input class="form-control" type="text" name="MYSQL_DATABASE">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label label-caps">Database user</label>
-                                        <input class="form-control" type="text" name="MYSQL_USER">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label label-caps">Database password</label>
-                                        <input class="form-control" type="text" name="MYSQL_PASSWORD">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label label-caps">Root password</label>
-                                        <input class="form-control" type="text" name="MYSQL_ROOT_PASSWORD">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label label-caps">Reference seed DB</label>
-                                        <select class="form-select" name="MYSQL_SEED_FILE">
-                                            <option value="">No seed import</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </section>
-
                             </div>
-                        </div>
+                        </section>
+
+                        <section class="settings-tab-panel" data-settings-tab-panel="workspace">
+                            <div class="row g-4">
+                                <div class="col-12 col-xxl-5">
+                                    <section class="card-shell p-4 p-lg-5 h-100">
+                                        <div class="section-header mb-4">
+                                            <div class="section-icon"><i class="bi bi-person-workspace"></i></div>
+                                            <div>
+                                                <p class="eyebrow eyebrow-dark mb-2">Workspace</p>
+                                                <h2 class="section-title mb-1">Identity</h2>
+                                                <p class="section-copy mb-0">Set the Linux user and shell inside the workspace container.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="row g-3">
+                                            <div class="col-sm-6 col-xl-12">
+                                                <label class="form-label label-caps">User</label>
+                                                <input class="form-control" type="text" name="WORKSPACE_USER">
+                                            </div>
+                                            <div class="col-sm-6 col-xl-12">
+                                                <label class="form-label label-caps">Shell</label>
+                                                <input class="form-control" type="text" name="WORKSPACE_SHELL">
+                                            </div>
+                                            <div class="col-sm-6 col-xl-12">
+                                                <label class="form-label label-caps">UID</label>
+                                                <input class="form-control" type="number" name="WORKSPACE_UID">
+                                            </div>
+                                            <div class="col-sm-6 col-xl-12">
+                                                <label class="form-label label-caps">GID</label>
+                                                <input class="form-control" type="number" name="WORKSPACE_GID">
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <div class="col-12 col-xxl-7">
+                                    <section class="card-shell p-4 p-lg-5 h-100">
+                                        <div class="section-header mb-4">
+                                            <div class="section-icon"><i class="bi bi-git"></i></div>
+                                            <div>
+                                                <p class="eyebrow eyebrow-dark mb-2">Git</p>
+                                                <h2 class="section-title mb-1">Bootstrap</h2>
+                                                <p class="section-copy mb-0">Clone a repo into the workspace and switch to a branch whenever the instance starts.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label label-caps">Repository URL</label>
+                                                <input class="form-control" type="text" name="GIT_REPO" placeholder="https://github.com/example/project.git">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Branch</label>
+                                                <input class="form-control" type="text" name="GIT_BRANCH" placeholder="main">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">HTTP username</label>
+                                                <input class="form-control" type="text" name="GIT_HTTP_USERNAME" placeholder="gitlab-username">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label label-caps">HTTP password or token</label>
+                                                <input class="form-control" type="password" name="GIT_HTTP_PASSWORD" placeholder="GitLab PAT or password">
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="settings-tab-panel" data-settings-tab-panel="database">
+                            <div class="row g-4">
+                                <div class="col-12 col-xxl-8">
+                                    <section class="card-shell p-4 p-lg-5 h-100">
+                                        <div class="section-header mb-4">
+                                            <div class="section-icon"><i class="bi bi-database-lock"></i></div>
+                                            <div>
+                                                <p class="eyebrow eyebrow-dark mb-2">Database</p>
+                                                <h2 class="section-title mb-1">Credentials & Seed</h2>
+                                                <p class="section-copy mb-0">Create the target database, choose a seed dump, and control the database credentials in one place.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Database name</label>
+                                                <input class="form-control" type="text" name="MYSQL_DATABASE">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">MySQL version</label>
+                                                <input class="form-control" type="text" name="MYSQL_VERSION" placeholder="8.0">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Database user</label>
+                                                <input class="form-control" type="text" name="MYSQL_USER">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Database password</label>
+                                                <input class="form-control" type="text" name="MYSQL_PASSWORD">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Root password</label>
+                                                <input class="form-control" type="text" name="MYSQL_ROOT_PASSWORD">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Reference seed DB</label>
+                                                <select class="form-select" name="MYSQL_SEED_FILE">
+                                                    <option value="">No seed import</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+                            </div>
+                        </section>
                     </form>
                 </section>
 

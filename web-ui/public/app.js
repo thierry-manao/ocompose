@@ -3,6 +3,7 @@ const state = {
     dbFiles: [],
     selectedInstanceName: null,
     activeView: 'dashboard',
+    settingsTab: 'stack',
     consoleSessionId: null,
     consoleCursor: 0,
     consoleInstanceName: null,
@@ -28,6 +29,8 @@ const logoutButton = document.querySelector('#logout-button');
 const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
 const sectionNavButtons = Array.from(document.querySelectorAll('[data-view]'));
 const viewPanels = Array.from(document.querySelectorAll('[data-view-panel]'));
+const settingsTabButtons = Array.from(document.querySelectorAll('[data-settings-tab]'));
+const settingsTabPanels = Array.from(document.querySelectorAll('[data-settings-tab-panel]'));
 const dashboardInstanceGrid = document.querySelector('#dashboard-instance-grid');
 const sidebarInstanceList = document.querySelector('#sidebar-instance-list');
 const consoleForm = document.querySelector('#console-form');
@@ -113,6 +116,18 @@ function appendConsoleOutput(text) {
 
 function setConsoleStatus(text) {
     consoleStatus.textContent = text;
+}
+
+function setSettingsTab(tabName) {
+    state.settingsTab = tabName;
+
+    settingsTabButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.settingsTab === tabName);
+    });
+
+    settingsTabPanels.forEach((panel) => {
+        panel.classList.toggle('is-active', panel.dataset.settingsTabPanel === tabName);
+    });
 }
 
 function setActiveView(viewName) {
@@ -699,6 +714,12 @@ sectionNavButtons.forEach((button) => {
     });
 });
 
+settingsTabButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+        setSettingsTab(button.dataset.settingsTab);
+    });
+});
+
 consoleLink.addEventListener('click', () => {
     setActiveView('shell');
 });
@@ -792,6 +813,7 @@ logoutButton.addEventListener('click', async () => {
         setFormEnabled(false);
         setConsoleEnabled(false);
         setConsoleStatus('session: offline');
+        setSettingsTab(state.settingsTab);
         await loadDbFiles();
         await refreshInstances();
         setActiveView('dashboard');

@@ -549,6 +549,49 @@ body.app-body::before {
     gap: 0.75rem;
 }
 
+.settings-tabs-shell {
+    background: rgba(255, 250, 244, 0.72);
+}
+
+.settings-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.settings-tab-button {
+    padding: 0.85rem 1.1rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.78);
+    color: var(--ink);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.settings-tab-button:hover,
+.settings-tab-button.active {
+    transform: translateY(-1px);
+    border-color: rgba(20, 182, 133, 0.28);
+    box-shadow: 0 14px 28px rgba(16, 26, 40, 0.08);
+}
+
+.settings-tab-button.active {
+    background: linear-gradient(135deg, rgba(13, 23, 38, 0.98), rgba(24, 38, 60, 0.94));
+    color: #faf6ef;
+}
+
+.settings-tab-panel {
+    display: none;
+}
+
+.settings-tab-panel.is-active {
+    display: block;
+}
+
 .console-form,
 .console-shortcuts,
 .console-meta {
