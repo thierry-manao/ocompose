@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ocompose Login</title>
+    <title>ocompose Connexion</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -13,13 +13,13 @@
     <div class="container py-4 py-lg-5 min-vh-100 d-flex align-items-center justify-content-center">
         <div class="login-layout row g-0 overflow-hidden w-100">
             <section class="col-lg-6 login-brand p-4 p-lg-5">
-                <p class="eyebrow mb-2">ocompose secure access</p>
-                <h1 class="page-title mb-3">Sign in before touching the stack.</h1>
-                <p class="page-copy text-white-50 mb-4">The admin UI and its API are protected. Use the credentials stored in `.ocompose-ui.auth` or passed at startup.</p>
+                <p class="eyebrow mb-2">accès sécurisé ocompose</p>
+                <h1 class="page-title mb-3">Connectez-vous avant de toucher au stack.</h1>
+                <p class="page-copy text-white-50 mb-4">L'interface d'administration et son API sont protégées. Utilisez les identifiants stockés dans `.ocompose-ui.auth` ou passés au démarrage.</p>
                 <div class="login-points">
-                    <div class="login-point"><i class="bi bi-shield-lock"></i><span>Protected API routes</span></div>
-                    <div class="login-point"><i class="bi bi-cookie"></i><span>Cookie session auth</span></div>
-                    <div class="login-point"><i class="bi bi-terminal"></i><span>CLI-managed credentials</span></div>
+                    <div class="login-point"><i class="bi bi-shield-lock"></i><span>Routes API protégées</span></div>
+                    <div class="login-point"><i class="bi bi-cookie"></i><span>Authentification par session cookie</span></div>
+                    <div class="login-point"><i class="bi bi-terminal"></i><span>Identifiants gérés par CLI</span></div>
                 </div>
             </section>
             <section class="col-lg-6 login-form-pane p-4 p-lg-5">
@@ -27,25 +27,25 @@
                     <div class="section-header mb-4">
                         <div class="section-icon"><i class="bi bi-person-lock"></i></div>
                         <div>
-                            <p class="eyebrow eyebrow-dark mb-2">Login</p>
-                            <h2 class="section-title mb-1">Admin sign-in</h2>
-                            <p class="section-copy mb-0">You need a valid session before the admin board becomes available.</p>
+                            <p class="eyebrow eyebrow-dark mb-2">Connexion</p>
+                            <h2 class="section-title mb-1">Connexion admin</h2>
+                            <p class="section-copy mb-0">Vous avez besoin d'une session valide avant que le tableau de bord d'administration ne devienne disponible.</p>
                         </div>
                     </div>
 
                     <form id="login-form" class="d-grid gap-3">
                         <div>
-                            <label class="form-label label-caps" for="login-username">Username</label>
+                            <label class="form-label label-caps" for="login-username">Nom d'utilisateur</label>
                             <input id="login-username" name="username" class="form-control form-control-lg" type="text" autocomplete="username" required>
                         </div>
                         <div>
-                            <label class="form-label label-caps" for="login-password">Password</label>
+                            <label class="form-label label-caps" for="login-password">Mot de passe</label>
                             <input id="login-password" name="password" class="form-control form-control-lg" type="password" autocomplete="current-password" required>
                         </div>
-                        <button class="btn btn-dark btn-lg" type="submit"><i class="bi bi-box-arrow-in-right me-2"></i>Enter admin UI</button>
+                        <button class="btn btn-dark btn-lg" type="submit"><i class="bi bi-box-arrow-in-right me-2"></i>Entrer dans l'interface admin</button>
                     </form>
 
-                    <div id="login-message" class="alert status-alert mt-4 mb-0" role="status">Enter the admin credentials to continue.</div>
+                    <div id="login-message" class="alert status-alert mt-4 mb-0" role="status">Entrez les identifiants admin pour continuer.</div>
                 </div>
             </section>
         </div>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,12 +14,12 @@
         <header class="topbar card-shell mb-4">
             <div>
                 <p class="eyebrow mb-2">ocompose admin</p>
-                <h1 class="page-title mb-2">Control every instance from one clean board.</h1>
-                <p class="page-copy mb-0">Create stacks, edit the real `.env`, and run lifecycle actions without dropping back to the terminal.</p>
+                <h1 class="page-title mb-2">Contrôlez chaque instance depuis un seul tableau de bord.</h1>
+                <p class="page-copy mb-0">Créez des stacks, éditez les vrais fichiers `.env`, et exécutez les actions de cycle de vie sans retourner au terminal.</p>
             </div>
             <div class="topbar-actions">
-                <span class="auth-pill"><i class="bi bi-shield-lock"></i> secured session</span>
-                <button id="logout-button" type="button" class="btn btn-outline-light rounded-pill px-3"><i class="bi bi-box-arrow-right me-1"></i>Logout</button>
+                <span class="auth-pill"><i class="bi bi-shield-lock"></i> session sécurisée</span>
+                <button id="logout-button" type="button" class="btn btn-outline-light rounded-pill px-3"><i class="bi bi-box-arrow-right me-1"></i>Déconnexion</button>
             </div>
         </header>
 
@@ -27,21 +27,21 @@
             <aside class="col-12 col-xl-4 col-xxl-3">
                 <section class="card-shell p-3 p-lg-4 sidebar-shell">
                     <div class="section-nav mb-4">
-                        <button type="button" class="section-nav__button active" data-view="dashboard"><i class="bi bi-grid-1x2"></i><span>Dashboard</span></button>
+                        <button type="button" class="section-nav__button active" data-view="dashboard"><i class="bi bi-grid-1x2"></i><span>Tableau de bord</span></button>
                         <button type="button" class="section-nav__button" data-view="instances"><i class="bi bi-boxes"></i><span>Instances</span></button>
-                        <button type="button" class="section-nav__button" data-view="settings"><i class="bi bi-sliders"></i><span>Settings</span></button>
-                        <button type="button" class="section-nav__button" data-view="shell"><i class="bi bi-terminal"></i><span>Shell</span></button>
+                        <button type="button" class="section-nav__button" data-view="settings"><i class="bi bi-sliders"></i><span>Paramètres</span></button>
+                        <button type="button" class="section-nav__button" data-view="shell"><i class="bi bi-terminal"></i><span>Console</span></button>
                     </div>
 
                     <div class="sidebar-divider"></div>
 
                     <div class="mb-4">
-                        <p class="eyebrow eyebrow-dark mb-2">Selected instance</p>
+                        <p class="eyebrow eyebrow-dark mb-2">Instance sélectionnée</p>
                         <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-                            <h2 id="instance-title" class="sidebar-instance-title mb-0">Select an instance</h2>
-                            <span id="status-chip" class="status-chip idle">idle</span>
+                            <h2 id="instance-title" class="sidebar-instance-title mb-0">Sélectionnez une instance</h2>
+                            <span id="status-chip" class="status-chip idle">inactif</span>
                         </div>
-                        <p id="instance-subtitle" class="section-copy mb-0">Create or select an instance to unlock the editor. Until then, the admin stays intentionally quiet.</p>
+                        <p id="instance-subtitle" class="section-copy mb-0">Créez ou sélectionnez une instance pour déverrouiller l'éditeur. Jusque-là, l'admin reste intentionnellement silencieux.</p>
                     </div>
 
                     <div class="quick-stats mb-4">
@@ -62,15 +62,15 @@
                     <div class="sidebar-switcher mb-4">
                         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
                             <div>
-                                <p class="eyebrow eyebrow-dark mb-1">Switch</p>
+                                <p class="eyebrow eyebrow-dark mb-1">Changer</p>
                                 <h3 class="sidebar-switcher__title mb-0">Instances</h3>
                             </div>
-                            <button id="refresh-button" type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3">Refresh</button>
+                            <button id="refresh-button" type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3">Actualiser</button>
                         </div>
                         <div id="sidebar-instance-list" class="sidebar-instance-list"></div>
                     </div>
 
-                    <div id="message-bar" class="alert status-alert mb-0" role="status">Create or select an instance to unlock the configuration form.</div>
+                    <div id="message-bar" class="alert status-alert mb-0" role="status">Créez ou sélectionnez une instance pour déverrouiller le formulaire de configuration.</div>
                 </section>
             </aside>
 
@@ -80,9 +80,9 @@
                         <div class="section-header mb-4">
                             <div class="section-icon"><i class="bi bi-boxes"></i></div>
                             <div>
-                                <p class="eyebrow eyebrow-dark mb-2">Fleet Control</p>
+                                <p class="eyebrow eyebrow-dark mb-2">Contrôle de la flotte</p>
                                 <h2 class="section-title mb-1">Instances</h2>
-                                <p class="section-copy mb-0">Keep the dashboard simple: one card per instance, with the actions you actually need.</p>
+                                <p class="section-copy mb-0">Gardez le tableau de bord simple : une carte par instance, avec les actions dont vous avez réellement besoin.</p>
                             </div>
                         </div>
 
@@ -94,20 +94,20 @@
                     <section class="card-shell p-4 p-lg-5 mb-4">
                         <div class="d-flex justify-content-between align-items-start gap-3 mb-4 flex-wrap">
                             <div>
-                                <p class="eyebrow eyebrow-dark mb-2">Fleet</p>
+                                <p class="eyebrow eyebrow-dark mb-2">Flotte</p>
                                 <h2 class="section-title mb-1">Instances</h2>
-                                <p class="section-copy mb-0">Create, browse, and switch the active stack from one dedicated view.</p>
+                                <p class="section-copy mb-0">Créez, parcourez et changez le stack actif depuis une vue dédiée.</p>
                             </div>
                         </div>
 
                         <form id="create-form" class="create-box mb-4">
-                            <label for="new-instance-name" class="form-label label-caps">New instance</label>
+                            <label for="new-instance-name" class="form-label label-caps">Nouvelle instance</label>
                             <div class="input-group input-group-lg">
                                 <span class="input-group-text"><i class="bi bi-plus-circle"></i></span>
                                 <input id="new-instance-name" name="name" class="form-control" type="text" placeholder="client-a" autocomplete="off" required>
                             </div>
-                            <button class="btn btn-dark w-100 mt-3" type="submit">Create instance</button>
-                            <div class="form-text mt-2">Use letters, numbers, hyphens, or underscores.</div>
+                            <button class="btn btn-dark w-100 mt-3" type="submit">Créer l'instance</button>
+                            <div class="form-text mt-2">Utilisez des lettres, chiffres, tirets ou underscores.</div>
                         </form>
 
                         <div id="instance-list" class="instance-list"></div>
@@ -120,24 +120,24 @@
                             <div class="settings-topbar">
                                 <div>
                                     <p class="eyebrow eyebrow-dark mb-2">Configuration</p>
-                                    <h2 class="section-title mb-1">Settings</h2>
-                                    <p class="section-copy mb-0">Edit the real instance `.env` without mixing it into the runtime dashboard.</p>
+                                    <h2 class="section-title mb-1">Paramètres</h2>
+                                    <p class="section-copy mb-0">Éditez les vrais fichiers `.env` de l'instance sans les mélanger au tableau de bord d'exécution.</p>
                                 </div>
                                 <div class="settings-actions">
-                                    <button class="btn btn-success" type="button" data-action="up"><i class="bi bi-play-fill me-2"></i>Up</button>
-                                    <button class="btn btn-outline-dark" type="button" data-action="down"><i class="bi bi-stop-fill me-2"></i>Down</button>
-                                    <button class="btn btn-outline-dark" type="button" data-action="restart"><i class="bi bi-arrow-repeat me-2"></i>Restart</button>
-                                    <button class="btn btn-outline-danger" type="button" data-action="destroy"><i class="bi bi-trash3 me-2"></i>Destroy</button>
-                                    <button id="save-button" class="btn btn-dark btn-lg" type="submit"><i class="bi bi-save me-2"></i>Save configuration</button>
+                                    <button class="btn btn-success" type="button" data-action="up"><i class="bi bi-play-fill me-2"></i>Démarrer</button>
+                                    <button class="btn btn-outline-dark" type="button" data-action="down"><i class="bi bi-stop-fill me-2"></i>Arrêter</button>
+                                    <button class="btn btn-outline-dark" type="button" data-action="restart"><i class="bi bi-arrow-repeat me-2"></i>Redémarrer</button>
+                                    <button class="btn btn-outline-danger" type="button" data-action="destroy"><i class="bi bi-trash3 me-2"></i>Détruire</button>
+                                    <button id="save-button" class="btn btn-dark btn-lg" type="submit"><i class="bi bi-save me-2"></i>Enregistrer la configuration</button>
                                 </div>
                             </div>
                         </section>
 
                         <section class="settings-tabs-shell card-shell p-3 p-lg-4 mb-4">
-                            <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+                            <div class="settings-tabs" role="tablist" aria-label="Sections des paramètres">
                                 <button class="settings-tab-button active" type="button" data-settings-tab="stack">Stack</button>
-                                <button class="settings-tab-button" type="button" data-settings-tab="workspace">Workspace & Git</button>
-                                <button class="settings-tab-button" type="button" data-settings-tab="database">Database</button>
+                                <button class="settings-tab-button" type="button" data-settings-tab="workspace">Espace de travail & Git</button>
+                                <button class="settings-tab-button" type="button" data-settings-tab="database">Base de données</button>
                             </div>
                         </section>
 
@@ -149,30 +149,30 @@
                                             <div class="section-icon"><i class="bi bi-toggles2"></i></div>
                                             <div>
                                                 <p class="eyebrow eyebrow-dark mb-2">Services</p>
-                                                <h2 class="section-title mb-1">Toggle the stack</h2>
-                                                <p class="section-copy mb-0">Decide what actually boots for this instance.</p>
+                                                <h2 class="section-title mb-1">Activer/désactiver le stack</h2>
+                                                <p class="section-copy mb-0">Décidez ce qui démarre réellement pour cette instance.</p>
                                             </div>
                                         </div>
 
                                         <div class="toggle-stack">
                                             <label class="toggle-card form-check form-switch">
                                                 <div>
-                                                    <span class="toggle-title">PHP application layer</span>
-                                                    <small class="text-secondary d-block">Enable the Nginx and PHP-FPM side of the stack.</small>
+                                                    <span class="toggle-title">Couche applicative PHP</span>
+                                                    <small class="text-secondary d-block">Activer la partie Nginx et PHP-FPM du stack.</small>
                                                 </div>
                                                 <input class="form-check-input" type="checkbox" role="switch" name="PHP_ENABLED">
                                             </label>
                                             <label class="toggle-card form-check form-switch">
                                                 <div>
-                                                    <span class="toggle-title">MySQL database</span>
-                                                    <small class="text-secondary d-block">Start the database container and publish the port.</small>
+                                                    <span class="toggle-title">Base de données MySQL</span>
+                                                    <small class="text-secondary d-block">Démarrer le conteneur de base de données et publier le port.</small>
                                                 </div>
                                                 <input class="form-check-input" type="checkbox" role="switch" name="MYSQL_ENABLED">
                                             </label>
                                             <label class="toggle-card form-check form-switch">
                                                 <div>
                                                     <span class="toggle-title">phpMyAdmin</span>
-                                                    <small class="text-secondary d-block">Expose the browser admin interface for MySQL.</small>
+                                                    <small class="text-secondary d-block">Exposer l'interface d'administration navigateur pour MySQL.</small>
                                                 </div>
                                                 <input class="form-check-input" type="checkbox" role="switch" name="PHPMYADMIN_ENABLED">
                                             </label>
@@ -185,39 +185,39 @@
                                         <div class="section-header mb-4">
                                             <div class="section-icon"><i class="bi bi-broadcast"></i></div>
                                             <div>
-                                                <p class="eyebrow eyebrow-dark mb-2">Runtime</p>
-                                                <h2 class="section-title mb-1">Ports and versions</h2>
-                                                <p class="section-copy mb-0">Control what the host sees and what versions get built.</p>
+                                                <p class="eyebrow eyebrow-dark mb-2">Exécution</p>
+                                                <h2 class="section-title mb-1">Ports et versions</h2>
+                                                <p class="section-copy mb-0">Contrôlez ce que l'hôte voit et quelles versions sont compilées.</p>
                                             </div>
                                         </div>
 
                                         <div class="row g-3">
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">App port</label>
+                                                <label class="form-label label-caps">Port de l'application</label>
                                                 <input class="form-control form-control-lg" type="number" name="APP_PORT">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Workspace SSH port</label>
+                                                <label class="form-label label-caps">Port SSH de l'espace de travail</label>
                                                 <input class="form-control form-control-lg" type="number" name="WORKSPACE_SSH_PORT">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">MySQL port</label>
+                                                <label class="form-label label-caps">Port MySQL</label>
                                                 <input class="form-control form-control-lg" type="number" name="MYSQL_PORT">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">phpMyAdmin port</label>
+                                                <label class="form-label label-caps">Port phpMyAdmin</label>
                                                 <input class="form-control form-control-lg" type="number" name="PHPMYADMIN_PORT">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">PHP version</label>
+                                                <label class="form-label label-caps">Version PHP</label>
                                                 <input class="form-control form-control-lg" type="text" name="PHP_VERSION" placeholder="8.3">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">MySQL version</label>
+                                                <label class="form-label label-caps">Version MySQL</label>
                                                 <input class="form-control form-control-lg" type="text" name="MYSQL_VERSION" placeholder="8.0">
                                             </div>
                                             <div class="col-12">
-                                                <label class="form-label label-caps">PHP extensions</label>
+                                                <label class="form-label label-caps">Extensions PHP</label>
                                                 <input class="form-control form-control-lg" type="text" name="PHP_EXTENSIONS" placeholder="pdo pdo_mysql mysqli mbstring zip gd curl intl">
                                             </div>
                                         </div>
@@ -233,15 +233,15 @@
                                         <div class="section-header mb-4">
                                             <div class="section-icon"><i class="bi bi-person-workspace"></i></div>
                                             <div>
-                                                <p class="eyebrow eyebrow-dark mb-2">Workspace</p>
-                                                <h2 class="section-title mb-1">Identity</h2>
-                                                <p class="section-copy mb-0">Set the Linux user and shell inside the workspace container.</p>
+                                                <p class="eyebrow eyebrow-dark mb-2">Espace de travail</p>
+                                                <h2 class="section-title mb-1">Identité</h2>
+                                                <p class="section-copy mb-0">Définissez l'utilisateur Linux et le shell à l'intérieur du conteneur d'espace de travail.</p>
                                             </div>
                                         </div>
 
                                         <div class="row g-3">
                                             <div class="col-sm-6 col-xl-12">
-                                                <label class="form-label label-caps">User</label>
+                                                <label class="form-label label-caps">Utilisateur</label>
                                                 <input class="form-control" type="text" name="WORKSPACE_USER">
                                             </div>
                                             <div class="col-sm-6 col-xl-12">
@@ -266,27 +266,27 @@
                                             <div class="section-icon"><i class="bi bi-git"></i></div>
                                             <div>
                                                 <p class="eyebrow eyebrow-dark mb-2">Git</p>
-                                                <h2 class="section-title mb-1">Bootstrap</h2>
-                                                <p class="section-copy mb-0">Clone a repo into the workspace and switch to a branch whenever the instance starts.</p>
+                                                <h2 class="section-title mb-1">Initialisation</h2>
+                                                <p class="section-copy mb-0">Clonez un dépôt dans l'espace de travail et basculez vers une branche chaque fois que l'instance démarre.</p>
                                             </div>
                                         </div>
 
                                         <div class="row g-3">
                                             <div class="col-12">
-                                                <label class="form-label label-caps">Repository URL</label>
-                                                <input class="form-control" type="text" name="GIT_REPO" placeholder="https://github.com/example/project.git">
+                                                <label class="form-label label-caps">URL du dépôt</label>
+                                                <input class="form-control" type="text" name="GIT_REPO" placeholder="https://github.com/exemple/projet.git">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Branch</label>
+                                                <label class="form-label label-caps">Branche</label>
                                                 <input class="form-control" type="text" name="GIT_BRANCH" placeholder="main">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">HTTP username</label>
-                                                <input class="form-control" type="text" name="GIT_HTTP_USERNAME" placeholder="gitlab-username">
+                                                <label class="form-label label-caps">Nom d'utilisateur HTTP</label>
+                                                <input class="form-control" type="text" name="GIT_HTTP_USERNAME" placeholder="utilisateur-gitlab">
                                             </div>
                                             <div class="col-12">
-                                                <label class="form-label label-caps">HTTP password or token</label>
-                                                <input class="form-control" type="password" name="GIT_HTTP_PASSWORD" placeholder="GitLab PAT or password">
+                                                <label class="form-label label-caps">Mot de passe HTTP ou token</label>
+                                                <input class="form-control" type="password" name="GIT_HTTP_PASSWORD" placeholder="PAT GitLab ou mot de passe">
                                             </div>
                                         </div>
                                     </section>
@@ -301,44 +301,44 @@
                                         <div class="section-header mb-4">
                                             <div class="section-icon"><i class="bi bi-database-lock"></i></div>
                                             <div>
-                                                <p class="eyebrow eyebrow-dark mb-2">Database</p>
-                                                <h2 class="section-title mb-1">Credentials & Seed</h2>
-                                                <p class="section-copy mb-0">Create the target database, choose a seed dump, and control the database credentials in one place.</p>
+                                                <p class="eyebrow eyebrow-dark mb-2">Base de données</p>
+                                                <h2 class="section-title mb-1">Identifiants & Alimentation</h2>
+                                                <p class="section-copy mb-0">Créez la base de données cible, choisissez un dump d'alimentation et contrôlez les identifiants de la base de données en un seul endroit.</p>
                                             </div>
                                         </div>
 
                                         <div class="row g-3">
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Database name</label>
+                                                <label class="form-label label-caps">Nom de la base de données</label>
                                                 <input class="form-control" type="text" name="MYSQL_DATABASE">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">MySQL version</label>
+                                                <label class="form-label label-caps">Version MySQL</label>
                                                 <input class="form-control" type="text" name="MYSQL_VERSION" placeholder="8.0">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Database user</label>
+                                                <label class="form-label label-caps">Utilisateur de la base de données</label>
                                                 <input class="form-control" type="text" name="MYSQL_USER">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Database password</label>
+                                                <label class="form-label label-caps">Mot de passe de la base de données</label>
                                                 <input class="form-control" type="text" name="MYSQL_PASSWORD">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Root password</label>
+                                                <label class="form-label label-caps">Mot de passe root</label>
                                                 <input class="form-control" type="text" name="MYSQL_ROOT_PASSWORD">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Reference seed DB</label>
+                                                <label class="form-label label-caps">Dump de référence</label>
                                                 <select class="form-select" name="MYSQL_SEED_FILE">
-                                                    <option value="">No seed import</option>
+                                                    <option value="">Pas d'import de dump</option>
                                                 </select>
                                             </div>
                                             <div class="col-12">
                                                 <label class="toggle-card form-check form-switch">
                                                     <div>
-                                                        <span class="toggle-title">Always re-seed on startup</span>
-                                                        <small class="text-secondary d-block">When enabled, startup drops and recreates the selected database before importing the dump.</small>
+                                                        <span class="toggle-title">Toujours réalimenter au démarrage</span>
+                                                        <small class="text-secondary d-block">Lorsqu'activé, le démarrage supprime et recrée la base de données sélectionnée avant d'importer le dump.</small>
                                                     </div>
                                                     <input class="form-check-input" type="checkbox" role="switch" name="MYSQL_RESEED_ON_STARTUP">
                                                 </label>
@@ -358,14 +358,14 @@
                             <div>
                                 <p class="eyebrow eyebrow-dark mb-2">Console</p>
                                 <h2 class="section-title mb-1">Shell</h2>
-                                <p id="console-subtitle" class="section-copy mb-0">Commands run inside the selected workspace container from its project root.</p>
+                                <p id="console-subtitle" class="section-copy mb-0">Les commandes s'exécutent à l'intérieur du conteneur d'espace de travail sélectionné depuis sa racine de projet.</p>
                             </div>
                         </div>
 
                         <div class="console-meta mb-3">
-                            <span id="console-cwd" class="console-badge">cwd: unavailable</span>
-                            <span id="console-status" class="console-badge">session: offline</span>
-                            <button id="console-clear-button" class="btn btn-outline-dark btn-sm rounded-pill ms-auto" type="button">Clear output</button>
+                            <span id="console-cwd" class="console-badge">cwd: non disponible</span>
+                            <span id="console-status" class="console-badge">session: hors ligne</span>
+                            <button id="console-clear-button" class="btn btn-outline-dark btn-sm rounded-pill ms-auto" type="button">Effacer la sortie</button>
                         </div>
 
                         <div class="console-shortcuts mb-3">
@@ -376,10 +376,10 @@
 
                         <form id="console-form" class="console-shell">
                             <div id="console-surface" class="console-surface" tabindex="0">
-                                <pre id="console-output" class="console-output mb-0">Select a running instance to open its workspace console.</pre>
+                                <pre id="console-output" class="console-output mb-0">Sélectionnez une instance en cours d'exécution pour ouvrir sa console d'espace de travail.</pre>
                                 <label class="console-entry" for="console-command">
                                     <span id="console-prompt" class="console-prompt">$</span>
-                                    <input id="console-command" class="console-inline-input" type="text" placeholder="Type a command and press Enter" autocomplete="off" spellcheck="false">
+                                    <input id="console-command" class="console-inline-input" type="text" placeholder="Tapez une commande et appuyez sur Entrée" autocomplete="off" spellcheck="false">
                                 </label>
                             </div>
                         </form>

@@ -18,7 +18,7 @@ async function loginRequest(path, options = {}) {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(payload.error || 'Request failed.');
+        throw new Error(payload.error || 'La requête a échoué.');
     }
 
     return payload;
@@ -29,7 +29,7 @@ async function loginRequest(path, options = {}) {
         await loginRequest('/api/auth/session');
         window.location.replace('/');
     } catch (error) {
-        setLoginMessage('Enter the admin credentials to continue.');
+        setLoginMessage('Entrez les identifiants admin pour continuer.');
     }
 })();
 
@@ -40,7 +40,7 @@ loginForm.addEventListener('submit', async (event) => {
     const password = String(formData.get('password') || '');
 
     try {
-        setLoginMessage('Signing in...');
+        setLoginMessage('Connexion en cours...');
         await loginRequest('/api/auth/login', {
             method: 'POST',
             body: JSON.stringify({ username, password }),

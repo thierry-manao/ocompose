@@ -448,7 +448,7 @@ async function createConsoleSession(instanceName, ownerToken) {
     const containerName = getWorkspaceContainerName(instanceName);
 
     if (!runningContainers.has(containerName)) {
-        throw new Error(`Instance '${instanceName}' is not running.`);
+        throw new Error(`L'instance '${instanceName}' n'est pas en cours d'exécution.`);
     }
 
     for (const existingConsoleSession of consoleSessions.values()) {
@@ -523,7 +523,7 @@ async function createConsoleSession(instanceName, ownerToken) {
 
 function validateInstanceName(instanceName) {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(instanceName || '')) {
-        throw new Error('Instance names may only contain letters, numbers, hyphens, and underscores.');
+        throw new Error('Les noms d\'instance ne peuvent contenir que des lettres, chiffres, tirets et underscores.');
     }
 }
 
@@ -579,7 +579,7 @@ async function runOcompose(args) {
 async function runWorkspaceCommand(instanceName, command) {
     const normalizedCommand = normalizeValue(command);
     if (!normalizedCommand) {
-        throw new Error('A command is required.');
+        throw new Error('Une commande est requise.');
     }
 
     const config = await readResolvedInstanceConfig(instanceName);
@@ -587,7 +587,7 @@ async function runWorkspaceCommand(instanceName, command) {
     const containerName = getWorkspaceContainerName(instanceName);
 
     if (!runningContainers.has(containerName)) {
-        throw new Error(`Instance '${instanceName}' is not running.`);
+        throw new Error(`L'instance '${instanceName}' n'est pas en cours d'exécution.`);
     }
 
     const workspaceDir = getWorkspaceDirectory(config);
@@ -616,7 +616,7 @@ async function runWorkspaceCommand(instanceName, command) {
         };
     } catch (error) {
         if (error.code === 'ENOENT') {
-            throw new Error('Docker CLI is not available on the host.');
+            throw new Error('La CLI Docker n\'est pas disponible sur l\'hôte.');
         }
 
         if (typeof error.code === 'number') {

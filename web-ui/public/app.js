@@ -73,13 +73,13 @@ function renderDbFileOptions(selectedValue = '') {
         return;
     }
 
-    const options = ['<option value="">No seed import</option>'];
+    const options = ['<option value="">Pas d\'import de dump</option>'];
     state.dbFiles.forEach((fileName) => {
         options.push(`<option value="${fileName}">${fileName}</option>`);
     });
 
     if (selectedValue && !state.dbFiles.includes(selectedValue)) {
-        options.push(`<option value="${selectedValue}">${selectedValue} (missing)</option>`);
+        options.push(`<option value="${selectedValue}">${selectedValue} (manquant)</option>`);
     }
 
     element.innerHTML = options.join('');
@@ -160,7 +160,7 @@ async function apiRequest(path, options = {}) {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(payload.error || 'Request failed.');
+        throw new Error(payload.error || 'La requête a échoué.');
     }
 
     return payload;
@@ -173,11 +173,11 @@ function getSelectedInstance() {
 async function runInstanceAction(instanceName, action) {
     const instance = state.instances.find((entry) => entry.name === instanceName);
     if (!instance) {
-        setMessage('Instance not found.', true);
+        setMessage('Instance introuvable.', true);
         return;
     }
 
-    if (action === 'destroy' && !window.confirm(`Destroy ${instance.name} and remove its data?`)) {
+    if (action === 'destroy' && !window.confirm(`Détruire ${instance.name} et supprimer ses données ?`)) {
         return;
     }
 
@@ -189,12 +189,12 @@ async function runInstanceAction(instanceName, action) {
 
         if (action === 'destroy') {
             await refreshInstances(false);
-            setMessage(`Destroyed ${instance.name}.`);
+            setMessage(`${instance.name} détruit.`);
             return;
         }
 
         await refreshInstances();
-        setMessage(`${action} completed for ${instance.name}.`);
+        setMessage(`${action} terminé pour ${instance.name}.`);
     } catch (error) {
         setMessage(error.message, true);
     }
@@ -287,7 +287,7 @@ async function pollConsoleOutput() {
 
         state.consoleCursor = payload.cursor;
         consoleCwd.textContent = `cwd: ${payload.cwd || 'unavailable'}`;
-        setConsoleStatus(payload.closed ? 'session: closed' : payload.busy ? 'session: busy' : 'session: ready');
+        setConsoleStatus(payload.closed ? 'session: fermée' : payload.busy ? 'session: occupée' : 'session: prête');
 
         if (!payload.closed && state.consoleSessionId === payload.sessionId) {
             state.consolePollTimer = window.setTimeout(pollConsoleOutput, 800);
@@ -296,7 +296,7 @@ async function pollConsoleOutput() {
 
         state.consoleSessionId = null;
     } catch (error) {
-        setConsoleStatus('session: offline');
+        setConsoleStatus('session: hors ligne');
         setMessage(error.message, true);
     }
 }
@@ -326,9 +326,9 @@ async function ensureConsoleSession(instance) {
     state.consoleSessionId = payload.sessionId;
     state.consoleCursor = payload.cursor;
     state.consoleInstanceName = instance.name;
-    setConsoleStatus('session: ready');
-    consoleCwd.textContent = `cwd: ${payload.cwd || 'unavailable'}`;
-    setConsoleOutput(`Connected to ${instance.name}. State is preserved between commands.`);
+    setConsoleStatus('session: prête');
+    consoleCwd.textContent = `cwd: ${payload.cwd || 'non disponible'}`;
+    setConsoleOutput(`Connecté à ${instance.name}. L'état est préservé entre les commandes.`);
     stopConsolePolling();
     state.consolePollTimer = window.setTimeout(pollConsoleOutput, 800);
 }
@@ -339,10 +339,10 @@ function updateConsoleState(instance) {
     if (!instance) {
         stopConsolePolling();
         setConsoleEnabled(false);
-        consoleSubtitle.textContent = 'Commands run inside the selected workspace container from its project root.';
-        consoleCwd.textContent = 'cwd: unavailable';
-        setConsoleStatus('session: offline');
-        setConsoleOutput('Select a running instance to open its workspace console.');
+        consoleSubtitle.textContent = 'Les commandes s\'exécutent à l\'intérieur du conteneur d\'espace de travail sélectionné depuis sa racine de projet.';
+        consoleCwd.textContent = 'cwd: non disponible';
+        setConsoleStatus('session: hors ligne');
+        setConsoleOutput('Sélectionnez une instance en cours d\'exécution pour ouvrir sa console d\'espace de travail.');
         return;
     }
 
@@ -357,23 +357,23 @@ function updateConsoleState(instance) {
     if (instance.status !== 'running') {
         stopConsolePolling();
         setConsoleEnabled(false);
-        consoleSubtitle.textContent = 'Start the instance first. Commands only run against a live workspace container.';
-        setConsoleStatus('session: offline');
-        setConsoleOutput(`Instance ${instance.name} is stopped. Start it to use the web console.`);
+        consoleSubtitle.textContent = 'Démarrez d\'abord l\'instance. Les commandes ne s\'exécutent que sur un conteneur d\'espace de travail actif.';
+        setConsoleStatus('session: hors ligne');
+        setConsoleOutput(`L'instance ${instance.name} est arrêtée. Démarrez-la pour utiliser la console web.`);
         return;
     }
 
     setConsoleEnabled(true);
-    consoleSubtitle.textContent = `Commands run inside ${instance.name}_workspace from ${cwd}.`;
-    setConsoleStatus(state.consoleSessionId && state.consoleInstanceName === instance.name ? 'session: ready' : 'session: connecting');
+    consoleSubtitle.textContent = `Les commandes s'exécutent dans ${instance.name}_workspace depuis ${cwd}.`;
+    setConsoleStatus(state.consoleSessionId && state.consoleInstanceName === instance.name ? 'session: prête' : 'session: connexion en cours');
 
     if (!consoleOutput.dataset.instanceName || consoleOutput.dataset.instanceName !== instance.name) {
-        setConsoleOutput(`Connecting to ${instance.name}...`);
+        setConsoleOutput(`Connexion à ${instance.name}...`);
     }
 
     consoleOutput.dataset.instanceName = instance.name;
     ensureConsoleSession(instance).catch((error) => {
-        setConsoleStatus('session: offline');
+        setConsoleStatus('session: hors ligne');
         setMessage(error.message, true);
         setConsoleOutput(error.message);
     });
@@ -390,9 +390,9 @@ function fillForm(instance) {
         form.reset();
         setFormEnabled(false);
         updateEndpoints(null);
-        instanceTitle.textContent = 'Select an instance';
-        instanceSubtitle.textContent = 'Create or select an instance to unlock configuration. Until then, the editor stays intentionally locked.';
-        statusChip.textContent = 'idle';
+        instanceTitle.textContent = 'Sélectionnez une instance';
+        instanceSubtitle.textContent = 'Créez ou sélectionnez une instance pour déverrouiller la configuration. Jusque-là, l\'\u00e9diteur reste intentionnellement verrouillé.';
+        statusChip.textContent = 'inactif';
         statusChip.className = 'status-chip idle';
         updateConsoleState(null);
         return;
@@ -419,7 +419,7 @@ function fillForm(instance) {
     });
 
     instanceTitle.textContent = instance.name;
-    instanceSubtitle.textContent = 'These fields edit the same `.env` file used by the CLI and Docker Compose.';
+    instanceSubtitle.textContent = 'Ces champs éditent le même fichier `.env` utilisé par le CLI et Docker Compose.';
     statusChip.textContent = instance.status;
     statusChip.className = `status-chip ${instance.status}`;
     updateEndpoints(instance);
@@ -433,7 +433,7 @@ function renderInstances() {
     if (state.instances.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
-        empty.textContent = 'No instances yet. Create one to begin.';
+        empty.textContent = 'Pas encore d\'instances. Créez-en une pour commencer.';
         instanceList.appendChild(empty);
         fillForm(null);
         return;
@@ -458,7 +458,7 @@ function renderInstances() {
             state.selectedInstanceName = instance.name;
             renderInstances();
             fillForm(instance);
-            setMessage(`Loaded ${instance.name}.`);
+            setMessage(`${instance.name} chargé.`);
         });
 
         instanceList.appendChild(button);
@@ -476,7 +476,7 @@ function renderSidebarInstances() {
     if (state.instances.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
-        empty.textContent = 'No instances yet.';
+        empty.textContent = 'Pas encore d\'instances.';
         sidebarInstanceList.appendChild(empty);
         return;
     }
@@ -495,7 +495,7 @@ function renderSidebarInstances() {
             state.selectedInstanceName = instance.name;
             renderInstances();
             fillForm(instance);
-            setMessage(`Loaded ${instance.name}.`);
+            setMessage(`${instance.name} chargé.`);
         });
 
         sidebarInstanceList.appendChild(button);
@@ -508,7 +508,7 @@ function renderDashboardInstances() {
     if (state.instances.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
-        empty.textContent = 'No instances yet. Create one from the Instances view.';
+        empty.textContent = 'Pas encore d\'instances. Créez-en une depuis la vue Instances.';
         dashboardInstanceGrid.appendChild(empty);
         return;
     }
@@ -523,7 +523,7 @@ function renderDashboardInstances() {
             <div class="dashboard-instance-card__head">
                 <div>
                     <h3 class="dashboard-instance-card__title">${instance.name}</h3>
-                    <p class="dashboard-instance-card__subtitle">${instance.status === 'running' ? 'Live environment' : 'Currently stopped'}</p>
+                    <p class="dashboard-instance-card__subtitle">${instance.status === 'running' ? 'Environnement actif' : 'Actuellement arrêté'}</p>
                 </div>
                 <span class="instance-card__status ${instance.status}">${instance.status}</span>
             </div>
@@ -533,19 +533,19 @@ function renderDashboardInstances() {
                 <span><i class="bi bi-terminal"></i> SSH ${instance.config.WORKSPACE_SSH_PORT || '-'}</span>
             </div>
             <div class="dashboard-instance-card__actions">
-                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-select="${instance.name}">Select</button>
-                <button class="btn btn-sm btn-success" type="button" data-dashboard-action="up" data-dashboard-instance="${instance.name}">Start</button>
-                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-action="down" data-dashboard-instance="${instance.name}">Stop</button>
-                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-action="restart" data-dashboard-instance="${instance.name}">Restart</button>
-                <button class="btn btn-sm btn-outline-danger" type="button" data-dashboard-action="destroy" data-dashboard-instance="${instance.name}">Destroy</button>
+                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-select="${instance.name}">Sélectionner</button>
+                <button class="btn btn-sm btn-success" type="button" data-dashboard-action="up" data-dashboard-instance="${instance.name}">Démarrer</button>
+                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-action="down" data-dashboard-instance="${instance.name}">Arrêter</button>
+                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-action="restart" data-dashboard-instance="${instance.name}">Redémarrer</button>
+                <button class="btn btn-sm btn-outline-danger" type="button" data-dashboard-action="destroy" data-dashboard-instance="${instance.name}">Détruire</button>
             </div>
             <div class="dashboard-instance-card__links">
-                ${appUrl ? `<a class="dashboard-link-button" href="${appUrl}" target="_blank" rel="noreferrer">Open app</a>` : ''}
-                ${pmaUrl ? `<a class="dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">Open phpMyAdmin</a>` : ''}
+                ${appUrl ? `<a class="dashboard-link-button" href="${appUrl}" target="_blank" rel="noreferrer">Ouvrir l'app</a>` : ''}
+                ${pmaUrl ? `<a class="dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">Ouvrir phpMyAdmin</a>` : ''}
             </div>
             <div class="dashboard-instance-card__footer">
-                <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Open settings</button>
-                <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="shell" data-dashboard-instance="${instance.name}">Open shell</button>
+                <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Ouvrir les paramètres</button>
+                <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="shell" data-dashboard-instance="${instance.name}">Ouvrir la console</button>
             </div>
         `;
 
@@ -593,12 +593,12 @@ createForm.addEventListener('submit', async (event) => {
     const name = String(formData.get('name') || '').trim();
 
     if (!name) {
-        setMessage('Enter an instance name first.', true);
+        setMessage('Entrez d\'abord un nom d\'instance.', true);
         return;
     }
 
     try {
-        setMessage(`Creating ${name}...`);
+        setMessage(`Création de ${name}...`);
         const payload = await apiRequest('/api/instances', {
             method: 'POST',
             body: JSON.stringify({ name }),
@@ -607,7 +607,7 @@ createForm.addEventListener('submit', async (event) => {
         await refreshInstances(false);
         state.selectedInstanceName = payload.instance.name;
         renderInstances();
-        setMessage(`Created ${payload.instance.name}.`);
+        setMessage(`${payload.instance.name} créé.`);
     } catch (error) {
         setMessage(error.message, true);
     }
@@ -618,18 +618,18 @@ form.addEventListener('submit', async (event) => {
     const instance = getSelectedInstance();
 
     if (!instance) {
-        setMessage('Select an instance before saving.', true);
+        setMessage('Sélectionnez une instance avant d\'enregistrer.', true);
         return;
     }
 
     try {
-        setMessage(`Saving ${instance.name}...`);
+        setMessage(`Enregistrement de ${instance.name}...`);
         await apiRequest(`/api/instances/${instance.name}`, {
             method: 'PUT',
             body: JSON.stringify({ config: collectFormData() }),
         });
         await refreshInstances();
-        setMessage(`Saved ${instance.name}. Restart the stack if you changed runtime settings.`);
+        setMessage(`${instance.name} enregistré. Redémarrez le stack si vous avez modifié les paramètres d'exécution.`);
     } catch (error) {
         setMessage(error.message, true);
     }
@@ -641,7 +641,7 @@ actionButtons.forEach((button) => {
         const action = button.dataset.action;
 
         if (!instance) {
-            setMessage('Select an instance first.', true);
+            setMessage('Sélectionnez d\'abord une instance.', true);
             return;
         }
 
@@ -651,9 +651,9 @@ actionButtons.forEach((button) => {
 
 refreshButton.addEventListener('click', async () => {
     try {
-        setMessage('Refreshing instances...');
+        setMessage('Actualisation des instances...');
         await refreshInstances();
-        setMessage('Instances refreshed.');
+        setMessage('Instances actualisées.');
     } catch (error) {
         setMessage(error.message, true);
     }
@@ -672,7 +672,7 @@ dashboardInstanceGrid.addEventListener('click', async (event) => {
 
     const instance = state.instances.find((entry) => entry.name === selectedInstanceName);
     if (!instance) {
-        setMessage('Instance not found.', true);
+        setMessage('Instance introuvable.', true);
         return;
     }
 
@@ -680,7 +680,7 @@ dashboardInstanceGrid.addEventListener('click', async (event) => {
         state.selectedInstanceName = selectedInstanceName;
         renderInstances();
         fillForm(instance);
-        setMessage(`Loaded ${selectedInstanceName}.`);
+        setMessage(`${selectedInstanceName} chargé.`);
         return;
     }
 
@@ -689,7 +689,7 @@ dashboardInstanceGrid.addEventListener('click', async (event) => {
         renderInstances();
         fillForm(instance);
         setActiveView(target.dataset.dashboardView);
-        setMessage(`Loaded ${selectedInstanceName}.`);
+        setMessage(`${selectedInstanceName} chargé.`);
         return;
     }
 
@@ -726,16 +726,16 @@ consoleSurface.addEventListener('click', () => {
 consoleClearButton.addEventListener('click', () => {
     const instance = getSelectedInstance();
     if (!instance) {
-        setConsoleOutput('Select a running instance to open its workspace console.');
+        setConsoleOutput('Sélectionnez une instance en cours d\'exécution pour ouvrir sa console d\'espace de travail.');
         return;
     }
 
     if (instance.status !== 'running') {
-        setConsoleOutput(`Instance ${instance.name} is stopped. Start it to use the web console.`);
+        setConsoleOutput(`L'instance ${instance.name} est arrêtée. Démarrez-la pour utiliser la console web.`);
         return;
     }
 
-    setConsoleOutput(`Connected to ${instance.name}. State is preserved between commands.`);
+    setConsoleOutput(`Connecté à ${instance.name}. L'état est préservé entre les commandes.`);
 });
 
 consoleForm.addEventListener('submit', async (event) => {
@@ -743,38 +743,38 @@ consoleForm.addEventListener('submit', async (event) => {
     const instance = getSelectedInstance();
 
     if (!instance) {
-        setMessage('Select an instance first.', true);
+        setMessage('Sélectionnez d\'abord une instance.', true);
         return;
     }
 
     const command = consoleCommand.value.trim();
     if (!command) {
-        setMessage('Enter a command first.', true);
+        setMessage('Entrez d\'abord une commande.', true);
         return;
     }
 
     if (!state.consoleSessionId || state.consoleInstanceName !== instance.name) {
-        setMessage('Console session is not ready yet.', true);
+        setMessage('La session de console n\'est pas encore prête.', true);
         return;
     }
 
     try {
         consoleCommand.disabled = true;
-        setConsoleStatus('session: busy');
+        setConsoleStatus('session: occupée');
         appendConsoleOutput(`$ ${command}`);
         consoleCommand.value = '';
-        setMessage(`Sending command to ${instance.name}...`);
+        setMessage(`Envoi de la commande à ${instance.name}...`);
         await apiRequest(`/api/instances/${instance.name}/console/input`, {
             method: 'POST',
             body: JSON.stringify({ sessionId: state.consoleSessionId, input: command }),
         });
         stopConsolePolling();
         state.consolePollTimer = window.setTimeout(pollConsoleOutput, 150);
-        setMessage(`Command sent to ${instance.name}.`);
+        setMessage(`Commande envoyée à ${instance.name}.`);
     } catch (error) {
         setMessage(error.message, true);
-        appendConsoleOutput(`[error]\n${error.message}`);
-        setConsoleStatus('session: offline');
+        appendConsoleOutput(`[erreur]\n${error.message}`);
+        setConsoleStatus('session: hors ligne');
     } finally {
         consoleCommand.disabled = false;
         if (state.activeView === 'shell' && !consoleCommand.disabled) {
@@ -798,12 +798,12 @@ logoutButton.addEventListener('click', async () => {
     try {
         setFormEnabled(false);
         setConsoleEnabled(false);
-        setConsoleStatus('session: offline');
+        setConsoleStatus('session: hors ligne');
         setSettingsTab(state.settingsTab);
         await loadDbFiles();
         await refreshInstances();
         setActiveView('dashboard');
-        setMessage(state.instances.length ? 'Select an instance to unlock editing.' : 'Create your first instance to unlock the editor.');
+        setMessage(state.instances.length ? 'Sélectionnez une instance pour déverrouiller l\'\u00e9dition.' : 'Créez votre première instance pour déverrouiller l\'\u00e9diteur.');
     } catch (error) {
         setMessage(error.message, true);
     }
