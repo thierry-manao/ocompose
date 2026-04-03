@@ -542,8 +542,6 @@ function renderDashboardInstances() {
             <div class="dashboard-instance-card__links">
                 ${appUrl ? `<a class="dashboard-link-button" href="${appUrl}" target="_blank" rel="noreferrer">Ouvrir l'app</a>` : ''}
                 ${pmaUrl ? `<a class="dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">Ouvrir phpMyAdmin</a>` : ''}
-            </div>
-            <div class="dashboard-instance-card__footer">
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Ouvrir les paramètres</button>
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="shell" data-dashboard-instance="${instance.name}">Ouvrir la console</button>
             </div>
