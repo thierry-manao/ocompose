@@ -342,10 +342,19 @@ bootstrap_instance_git_repo() {
         fi
 
         if [[ -n "$repo_url" && -n "$current_origin" && "$current_origin" != "$repo_url" ]]; then
-            echo -e "${RED}✗ Existing workspace repo origin does not match GIT_REPO for '$INSTANCE'.${NC}"
-            echo "  Current origin: $current_origin"
-            echo "  Requested:      $repo_url"
-            exit 1
+            echo -e "${YELLOW}⚠ Repository URL changed for '$INSTANCE'. Removing old workspace...${NC}"
+            echo "  Old origin: $current_origin"
+            echo "  New origin: $repo_url"
+            rm -rf "$workspace_dir"
+            mkdir -p "$workspace_dir"
+
+            echo -e "${CYAN}📥 Cloning new repository for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
+            if [[ -n "$branch" ]]; then
+                run_git_repo_command "$repo_url" clone --branch "$branch" --single-branch "$repo_url" "$workspace_dir"
+            else
+                run_git_repo_command "$repo_url" clone "$repo_url" "$workspace_dir"
+            fi
+            return 0
         fi
 
         if [[ -n "$repo_url" && -z "$current_origin" ]]; then
