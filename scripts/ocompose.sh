@@ -159,8 +159,11 @@ ensure_mysql_database_exists() {
         exit 1
     fi
 
+    local create_database_sql
+    printf -v create_database_sql 'CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;' "$MYSQL_DATABASE"
+
     docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" \
-        mysql -uroot -e "CREATE DATABASE IF NOT EXISTS \\`${MYSQL_DATABASE}\\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+        mysql -uroot -e "$create_database_sql"
 }
 
 import_mysql_seed_if_configured() {
