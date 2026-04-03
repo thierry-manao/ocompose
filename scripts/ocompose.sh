@@ -628,10 +628,9 @@ ensure_instance_files() {
 
     # Ensure workspace has proper permissions
     chmod -R 777 "$instance_dir/www" 2>/dev/null || true
-    local env_file="$INSTANCES_DIR/$INSTANCE/.env"
+}
 
-    [[ -f "$env_file" ]] || return 0
-
+sync_instance_env_defaults() {
     while IFS= read -r template_line; do
         local trimmed_line key
 
