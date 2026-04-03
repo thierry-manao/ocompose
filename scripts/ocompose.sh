@@ -486,7 +486,7 @@ cmd_ui() {
 
     if [[ $# -gt 0 ]]; then
         case "$1" in
-            start|stop|status)
+            start|stop|status|restart)
                 action="$1"
                 shift
                 ;;
@@ -524,6 +524,7 @@ cmd_ui() {
                 current_pid="$(tr -d '[:space:]' < "$UI_PID_FILE")"
                 echo -e "${YELLOW}⚠  ocompose web UI is already running (PID: ${current_pid}).${NC}"
                 echo -e "   URL:  http://localhost:${port}"
+                echo -e "   Hint: ./scripts/ocompose.sh ui restart"
                 echo -e "   Stop: ./scripts/ocompose.sh ui stop"
                 return 0
             fi
@@ -572,6 +573,19 @@ cmd_ui() {
             kill "$ui_pid" 2>/dev/null || true
             rm -f "$UI_PID_FILE"
             echo -e "${GREEN}✅ Web UI stopped.${NC}"
+            ;;
+        restart)
+            if is_ui_running; then
+                local ui_pid
+                ui_pid="$(tr -d '[:space:]' < "$UI_PID_FILE")"
+                kill "$ui_pid" 2>/dev/null || true
+                rm -f "$UI_PID_FILE"
+                echo -e "${CYAN}↻ Restarting ocompose web UI...${NC}"
+            else
+                echo -e "${CYAN}Launching ocompose web UI...${NC}"
+            fi
+
+            cmd_ui start "$port" "$@"
             ;;
         status)
             if is_ui_running; then
@@ -701,6 +715,7 @@ cmd_help() {
     echo "       ocompose.sh list"
     echo "       ocompose.sh ui [start] [port]"
     echo "       ocompose.sh ui stop"
+    echo "       ocompose.sh ui restart [port]"
     echo "       ocompose.sh ui status"
     echo "       ocompose.sh ui [port] --username <name> --password <pass>"
     echo "       ocompose.sh install-cli [bin-dir]"
@@ -728,6 +743,7 @@ cmd_help() {
     echo "  ocompose.sh blog init           # Create another instance"
     echo "  ocompose.sh list                # See all instances"
     echo "  ocompose.sh ui                  # Start the web admin in background"
+    echo "  ocompose.sh ui restart          # Restart the web admin"
     echo "  ocompose.sh ui stop             # Stop the web admin"
     echo "  ocompose.sh ui 8787 --username admin --password secret"
     echo "  ocompose.sh install-cli         # Install 'ocompose' into ~/.local/bin"

@@ -112,6 +112,7 @@ Usage: ocompose <instance> <command> [options]
   ocompose list
   ocompose ui [start] [port]
   ocompose ui stop
+  ocompose ui restart [port]
   ocompose ui status
   ocompose install-cli [bin-dir]
   ocompose uninstall-cli [bin-dir]
@@ -161,8 +162,11 @@ The UI now starts in the background and writes its PID and logs to the project r
 
 ```bash
 ocompose ui status
+ocompose ui restart
 ocompose ui stop
 ```
+
+If you change the web UI backend or client files while it is already running in the background, restart it so the new code is loaded.
 
 Authentication files:
 

@@ -298,7 +298,18 @@ function toBoolean(value) {
     return normalizeValue(value).toLowerCase() === 'true';
 }
 
-function buildInstanceSummary(instanceName, config, runningContainers) {
+function getRequestHostname(request) {
+    const forwardedHost = normalizeValue(request.headers['x-forwarded-host']);
+    const hostHeader = (forwardedHost || normalizeValue(request.headers.host) || `localhost:${PORT}`).split(',')[0].trim();
+
+    try {
+        return new URL(`http://${hostHeader}`).hostname;
+    } catch (error) {
+        return 'localhost';
+    }
+}
+
+function buildInstanceSummary(instanceName, config, runningContainers, accessHost = 'localhost') {
     const running = runningContainers.has(`${instanceName}_workspace`);
 
     return {
@@ -306,9 +317,9 @@ function buildInstanceSummary(instanceName, config, runningContainers) {
         status: running ? 'running' : 'stopped',
         config,
         urls: {
-            app: toBoolean(config.PHP_ENABLED) ? `http://localhost:${config.APP_PORT}` : null,
-            phpmyadmin: toBoolean(config.PHPMYADMIN_ENABLED) ? `http://localhost:${config.PHPMYADMIN_PORT}` : null,
-            ssh: config.WORKSPACE_SSH_PORT ? `localhost:${config.WORKSPACE_SSH_PORT}` : null,
+            app: toBoolean(config.PHP_ENABLED) ? `http://${accessHost}:${config.APP_PORT}` : null,
+            phpmyadmin: toBoolean(config.PHPMYADMIN_ENABLED) ? `http://${accessHost}:${config.PHPMYADMIN_PORT}` : null,
+            ssh: config.WORKSPACE_SSH_PORT ? `${accessHost}:${config.WORKSPACE_SSH_PORT}` : null,
         },
     };
 }
@@ -620,16 +631,16 @@ function getConsoleSnapshot(consoleSession, cursorInput) {
     };
 }
 
-async function getInstance(instanceName) {
+async function getInstance(instanceName, accessHost = 'localhost') {
     const [config, runningContainers] = await Promise.all([
         readResolvedInstanceConfig(instanceName),
         getRunningContainers(),
     ]);
 
-    return buildInstanceSummary(instanceName, config, runningContainers);
+    return buildInstanceSummary(instanceName, config, runningContainers, accessHost);
 }
 
-async function listInstances() {
+async function listInstances(accessHost = 'localhost') {
     const [instanceNames, runningContainers] = await Promise.all([
         listInstanceNames(),
         getRunningContainers(),
@@ -639,7 +650,7 @@ async function listInstances() {
     for (const instanceName of instanceNames) {
         try {
             const config = await readResolvedInstanceConfig(instanceName);
-            instances.push(buildInstanceSummary(instanceName, config, runningContainers));
+            instances.push(buildInstanceSummary(instanceName, config, runningContainers, accessHost));
         } catch (error) {
             instances.push({
                 name: instanceName,
@@ -741,10 +752,11 @@ async function handleAuthApi(request, response, url) {
 
 async function handleInstanceApi(request, response, url) {
     const pathParts = url.pathname.split('/').filter(Boolean);
+    const accessHost = getRequestHostname(request);
     cleanupConsoleSessions();
 
     if (request.method === 'GET' && url.pathname === '/api/instances') {
-        sendJson(response, 200, { instances: await listInstances() });
+        sendJson(response, 200, { instances: await listInstances(accessHost) });
         return true;
     }
 
@@ -753,7 +765,7 @@ async function handleInstanceApi(request, response, url) {
         const instanceName = normalizeValue(body.name);
         validateInstanceName(instanceName);
         await runOcompose([instanceName, 'init', '--yes']);
-        sendJson(response, 201, { instance: await getInstance(instanceName) });
+        sendJson(response, 201, { instance: await getInstance(instanceName, accessHost) });
         return true;
     }
 
@@ -762,14 +774,14 @@ async function handleInstanceApi(request, response, url) {
         validateInstanceName(instanceName);
 
         if (request.method === 'GET') {
-            sendJson(response, 200, { instance: await getInstance(instanceName) });
+            sendJson(response, 200, { instance: await getInstance(instanceName, accessHost) });
             return true;
         }
 
         if (request.method === 'PUT') {
             const body = await readJsonBody(request);
             await writeInstanceConfig(instanceName, sanitizeConfig(body.config));
-            sendJson(response, 200, { instance: await getInstance(instanceName) });
+            sendJson(response, 200, { instance: await getInstance(instanceName, accessHost) });
             return true;
         }
     }
@@ -800,7 +812,7 @@ async function handleInstanceApi(request, response, url) {
         sendJson(response, 200, {
             ok: true,
             output: result.stdout || result.stderr || '',
-            instance: await getInstance(instanceName),
+            instance: await getInstance(instanceName, accessHost),
         });
         return true;
     }

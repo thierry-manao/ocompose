@@ -157,10 +157,32 @@ async function runInstanceAction(instanceName, action) {
     }
 }
 
+function getAccessHostname() {
+    return window.location.hostname || 'localhost';
+}
+
+function buildHttpAccessUrl(port) {
+    const normalizedPort = String(port || '').trim();
+    if (!normalizedPort) {
+        return null;
+    }
+
+    return `http://${getAccessHostname()}:${normalizedPort}`;
+}
+
+function buildSshTarget(port) {
+    const normalizedPort = String(port || '').trim();
+    if (!normalizedPort) {
+        return null;
+    }
+
+    return `${getAccessHostname()}:${normalizedPort}`;
+}
+
 function updateEndpoints(instance) {
-    const appUrl = instance?.urls?.app || null;
-    const pmaUrl = instance?.urls?.phpmyadmin || null;
-    const sshUrl = instance?.urls?.ssh || null;
+    const appUrl = buildHttpAccessUrl(instance?.config?.APP_PORT) || instance?.urls?.app || null;
+    const pmaUrl = buildHttpAccessUrl(instance?.config?.PHPMYADMIN_PORT) || instance?.urls?.phpmyadmin || null;
+    const sshUrl = buildSshTarget(instance?.config?.WORKSPACE_SSH_PORT) || instance?.urls?.ssh || null;
 
     appLink.textContent = appUrl || 'Not available';
     appLink.href = appUrl || '#';
