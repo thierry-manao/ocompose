@@ -80,6 +80,14 @@ build_git_http_auth_header() {
     printf '%s' "$username:$password" | base64 | tr -d '\r\n'
 }
 
+escape_mysql_string_literal() {
+    local value="${1:-}"
+
+    value="${value//\\/\\\\}"
+    value="${value//\'/\'\'}"
+    printf '%s' "$value"
+}
+
 run_git_repo_command() {
     local repo_url="$1"
     shift
@@ -179,9 +187,9 @@ grant_mysql_user_access() {
         exit 1
     fi
 
-    local grant_sql
-    printf -v grant_sql "CREATE USER IF NOT EXISTS '%s'@'%%' IDENTIFIED BY '%s'; GRANT ALL PRIVILEGES ON \\`%s\\`.* TO '%s'@'%%'; FLUSH PRIVILEGES;" \
-        "$MYSQL_USER" "$MYSQL_PASSWORD" "$MYSQL_DATABASE" "$MYSQL_USER"
+    local escaped_password grant_sql
+    escaped_password="$(escape_mysql_string_literal "${MYSQL_PASSWORD:-}")"
+    grant_sql="CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${escaped_password}'; ALTER USER '${MYSQL_USER}'@'%' IDENTIFIED BY '${escaped_password}'; GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%'; FLUSH PRIVILEGES;"
 
     docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" \
         mysql -uroot -e "$grant_sql"

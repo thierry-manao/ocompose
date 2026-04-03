@@ -365,11 +365,6 @@ body.app-body::before {
     color: var(--danger);
 }
 
-.hero-panel {
-    background: linear-gradient(135deg, rgba(13, 23, 38, 0.98), rgba(24, 38, 60, 0.95));
-    color: #faf6ef;
-}
-
 .instance-title {
     font-size: clamp(2.1rem, 4vw, 3.6rem);
 }
@@ -382,43 +377,6 @@ body.app-body::before {
     border-radius: 999px;
     background: rgba(123, 133, 147, 0.18);
     color: var(--idle);
-}
-
-.endpoint-grid {
-    display: grid;
-    gap: 0.85rem;
-}
-
-.endpoint-card {
-    padding: 1rem 1.1rem;
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.endpoint-card--action {
-    display: flex;
-    flex-direction: column;
-}
-
-.endpoint-label {
-    display: block;
-    color: rgba(255, 255, 255, 0.58);
-}
-
-.endpoint-value {
-    display: block;
-    margin-top: 0.42rem;
-    color: #ffffff;
-    font-size: 1.02rem;
-    font-weight: 700;
-    text-decoration: none;
-    word-break: break-word;
-}
-
-.endpoint-value[href="#"] {
-    pointer-events: none;
-    color: rgba(255, 255, 255, 0.46);
 }
 
 .toggle-stack {
@@ -511,6 +469,13 @@ body.app-body::before {
     margin-top: 1rem;
 }
 
+.dashboard-instance-card__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 1rem;
+}
+
 .dashboard-instance-card__footer {
     margin-top: 1rem;
     justify-content: flex-start;
@@ -525,6 +490,17 @@ body.app-body::before {
 
 .dashboard-link-button:hover {
     color: var(--mint);
+}
+
+.dashboard-link-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(13, 23, 38, 0.08);
+    color: var(--ink);
+    font-size: 0.82rem;
+    font-weight: 700;
 }
 
 .view-panel {

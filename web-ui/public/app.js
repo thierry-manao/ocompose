@@ -17,10 +17,6 @@ const instanceTitle = document.querySelector('#instance-title');
 const instanceSubtitle = document.querySelector('#instance-subtitle');
 const statusChip = document.querySelector('#status-chip');
 const messageBar = document.querySelector('#message-bar');
-const appLink = document.querySelector('#app-link');
-const pmaLink = document.querySelector('#pma-link');
-const sshTarget = document.querySelector('#ssh-target');
-const consoleLink = document.querySelector('#console-link');
 const heroAppPort = document.querySelector('#hero-app-port');
 const heroMysqlPort = document.querySelector('#hero-mysql-port');
 const heroSshPort = document.querySelector('#hero-ssh-port');
@@ -227,20 +223,6 @@ function buildSshTarget(port) {
 }
 
 function updateEndpoints(instance) {
-    const appUrl = buildHttpAccessUrl(instance?.config?.APP_PORT) || instance?.urls?.app || null;
-    const pmaUrl = buildHttpAccessUrl(instance?.config?.PHPMYADMIN_PORT) || instance?.urls?.phpmyadmin || null;
-    const sshUrl = buildSshTarget(instance?.config?.WORKSPACE_SSH_PORT) || instance?.urls?.ssh || null;
-
-    appLink.textContent = appUrl || 'Not available';
-    appLink.href = appUrl || '#';
-    appLink.style.pointerEvents = appUrl ? 'auto' : 'none';
-
-    pmaLink.textContent = pmaUrl || 'Not available';
-    pmaLink.href = pmaUrl || '#';
-    pmaLink.style.pointerEvents = pmaUrl ? 'auto' : 'none';
-
-    sshTarget.textContent = sshUrl || 'Not available';
-    consoleLink.classList.toggle('disabled', !instance);
     heroAppPort.textContent = instance?.config?.APP_PORT || '-';
     heroMysqlPort.textContent = instance?.config?.MYSQL_PORT || '-';
     heroSshPort.textContent = instance?.config?.WORKSPACE_SSH_PORT || '-';
@@ -532,6 +514,10 @@ function renderDashboardInstances() {
     }
 
     state.instances.forEach((instance) => {
+        const appUrl = buildHttpAccessUrl(instance?.config?.APP_PORT) || instance?.urls?.app || null;
+        const pmaUrl = buildHttpAccessUrl(instance?.config?.PHPMYADMIN_PORT) || instance?.urls?.phpmyadmin || null;
+        const sshUrl = buildSshTarget(instance?.config?.WORKSPACE_SSH_PORT) || instance?.urls?.ssh || null;
+
         const card = document.createElement('article');
         card.className = `dashboard-instance-card${instance.name === state.selectedInstanceName ? ' active' : ''}`;
         card.innerHTML = `
@@ -553,6 +539,11 @@ function renderDashboardInstances() {
                 <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-action="down" data-dashboard-instance="${instance.name}">Stop</button>
                 <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-action="restart" data-dashboard-instance="${instance.name}">Restart</button>
                 <button class="btn btn-sm btn-outline-danger" type="button" data-dashboard-action="destroy" data-dashboard-instance="${instance.name}">Destroy</button>
+            </div>
+            <div class="dashboard-instance-card__links">
+                ${appUrl ? `<a class="dashboard-link-button" href="${appUrl}" target="_blank" rel="noreferrer">Open app</a>` : ''}
+                ${pmaUrl ? `<a class="dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">phpMyAdmin</a>` : ''}
+                ${sshUrl ? `<span class="dashboard-link-pill">SSH ${sshUrl}</span>` : ''}
             </div>
             <div class="dashboard-instance-card__footer">
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Open settings</button>
@@ -719,10 +710,6 @@ settingsTabButtons.forEach((button) => {
     button.addEventListener('click', () => {
         setSettingsTab(button.dataset.settingsTab);
     });
-});
-
-consoleLink.addEventListener('click', () => {
-    setActiveView('shell');
 });
 
 consoleShortcutButtons.forEach((button) => {
