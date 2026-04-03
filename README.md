@@ -198,6 +198,15 @@ MYSQL_ENABLED=true
 PHPMYADMIN_ENABLED=false   # disable phpMyAdmin
 ```
 
+Reference DB import:
+
+```env
+MYSQL_DATABASE=app_db
+MYSQL_SEED_FILE=paie.sql
+```
+
+`ocompose <instance> up` ensures `MYSQL_DATABASE` exists, then imports the selected dump into that database.
+
 App access:
 
 ```env
@@ -244,9 +253,22 @@ Per-instance runtime config files are created automatically from the versioned d
 instances/<name>/config/nginx/default.conf
 instances/<name>/config/php/php.ini
 instances/<name>/config/mysql/my.cnf
+instances/<name>/seed-state/
 ```
 
 That means one instance can change PHP, MySQL, or Nginx settings without affecting the others.
+
+MySQL seed import from the shared `db/` folder:
+
+```text
+db/compta.sql
+db/gescom.sql
+db/paie.sql
+```
+
+Set `MYSQL_SEED_FILE` to one of the files in `db/`. On `ocompose <instance> up`, ocompose waits for MySQL to be ready, creates `MYSQL_DATABASE` if needed, and imports the selected dump into it.
+
+The selected dump is tracked per instance in `instances/<name>/seed-state/mysql-seed.signature`, so the same file is not imported again on every restart. If you switch to a different dump file, change `MYSQL_DATABASE`, or the dump content changes, the import runs again on the next `up`.
 
 ---
 
@@ -263,11 +285,17 @@ ocompose/
 │   │   │   ├── nginx/default.conf
 │   │   │   ├── php/php.ini
 │   │   │   └── mysql/my.cnf
+│   │   ├── seed-state/
 │   │   └── www/
 │   └── blog/
 │       ├── .env
 │       ├── config/
+│       ├── seed-state/
 │       └── www/
+├── db/
+│   ├── compta.sql
+│   ├── gescom.sql
+│   └── paie.sql
 ├── services/
 │   ├── workspace/Dockerfile    # Base OS + Git (mandatory)
 │   └── php/Dockerfile          # PHP-FPM + Composer

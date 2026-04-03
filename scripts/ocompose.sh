@@ -99,6 +99,113 @@ run_git_repo_command() {
     git "$@"
 }
 
+seed_state_dir() {
+    echo "$INSTANCES_DIR/$INSTANCE/seed-state"
+}
+
+seed_marker_file() {
+    echo "$(seed_state_dir)/mysql-seed.signature"
+}
+
+compute_file_signature() {
+    local file_path="$1"
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file_path" | awk '{print $1}'
+        return
+    fi
+
+    wc -c < "$file_path" | tr -d '[:space:]'
+}
+
+resolve_mysql_seed_file() {
+    local seed_file="${MYSQL_SEED_FILE:-}"
+    local base_name
+
+    [[ -n "$seed_file" ]] || return 0
+
+    base_name="$(basename "$seed_file")"
+    if [[ "$base_name" != "$seed_file" ]]; then
+        echo -e "${RED}✗ MYSQL_SEED_FILE must be a filename from the db directory for '$INSTANCE'.${NC}"
+        echo "  Value: $seed_file"
+        exit 1
+    fi
+
+    echo "$PROJECT_DIR/db/$seed_file"
+}
+
+wait_for_mysql_ready() {
+    local max_attempts=30
+    local attempt=1
+
+    while [[ $attempt -le $max_attempts ]]; do
+        if docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" mysqladmin ping -h 127.0.0.1 -uroot --silent >/dev/null 2>&1; then
+            return 0
+        fi
+
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+
+    echo -e "${RED}✗ MySQL did not become ready in time for '$INSTANCE'.${NC}"
+    exit 1
+}
+
+ensure_mysql_database_exists() {
+    if [[ ! "${MYSQL_DATABASE:-}" =~ ^[A-Za-z0-9_]+$ ]]; then
+        echo -e "${RED}✗ MYSQL_DATABASE contains unsupported characters for '$INSTANCE'.${NC}"
+        echo "  Value: ${MYSQL_DATABASE:-}"
+        echo "  Allowed characters: letters, numbers, underscore"
+        exit 1
+    fi
+
+    docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" \
+        mysql -uroot -e "CREATE DATABASE IF NOT EXISTS \\`${MYSQL_DATABASE}\\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+}
+
+import_mysql_seed_if_configured() {
+    local seed_path marker_file current_signature previous_signature
+
+    [[ "${MYSQL_ENABLED:-false}" == "true" ]] || return 0
+    seed_path="$(resolve_mysql_seed_file)"
+    [[ -n "$seed_path" ]] || return 0
+
+    if [[ ! -f "$seed_path" ]]; then
+        echo -e "${RED}✗ MYSQL_SEED_FILE does not exist in '$PROJECT_DIR/db' for '$INSTANCE'.${NC}"
+        echo "  Expected file: $seed_path"
+        exit 1
+    fi
+
+    marker_file="$(seed_marker_file)"
+    mkdir -p "$(seed_state_dir)"
+    current_signature="${MYSQL_DATABASE}:${MYSQL_SEED_FILE}:$(compute_file_signature "$seed_path")"
+    previous_signature="$(cat "$marker_file" 2>/dev/null || true)"
+
+    if [[ "$current_signature" == "$previous_signature" ]]; then
+        return 0
+    fi
+
+    wait_for_mysql_ready
+    ensure_mysql_database_exists
+
+    echo -e "${CYAN}🗄 Importing MySQL seed '${BOLD}${MYSQL_SEED_FILE}${NC}${CYAN}' into '${BOLD}${MYSQL_DATABASE}${NC}${CYAN}' for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
+    case "$seed_path" in
+        *.sql)
+            docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" mysql -uroot "$MYSQL_DATABASE" < "$seed_path"
+            ;;
+        *.sql.gz)
+            gzip -cd "$seed_path" | docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" mysql -uroot "$MYSQL_DATABASE"
+            ;;
+        *)
+            echo -e "${RED}✗ Unsupported MYSQL_SEED_FILE format for '$INSTANCE'.${NC}"
+            echo "  Supported files: .sql, .sql.gz"
+            exit 1
+            ;;
+    esac
+
+    printf '%s' "$current_signature" > "$marker_file"
+}
+
 workspace_has_only_default_index() {
     local workspace_dir="$1"
     local index_file="$workspace_dir/index.php"
@@ -421,6 +528,7 @@ ensure_instance_files() {
 
     mkdir -p "$instance_dir/www"
     mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql"
+    mkdir -p "$instance_dir/seed-state"
 
     copy_if_missing "$PROJECT_DIR/www/index.php" "$instance_dir/www/index.php"
     copy_if_missing "$PROJECT_DIR/config/nginx/default.conf" "$instance_dir/config/nginx/default.conf"
@@ -517,6 +625,7 @@ cmd_init() {
 
     mkdir -p "$instance_dir/www"
     mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql"
+    mkdir -p "$instance_dir/seed-state"
 
     # Copy template and inject instance name
     sed "s/^PROJECT_NAME=.*/PROJECT_NAME=$INSTANCE/" \
@@ -542,6 +651,7 @@ cmd_init() {
     echo -e "   Config: $instance_dir/.env"
     echo -e "   Webroot: $instance_dir/www/"
     echo -e "   Runtime config: $instance_dir/config/"
+    echo -e "   DB seed state: $instance_dir/seed-state/"
     echo ""
     echo -e "   ${CYAN}Edit the .env file, then run:${NC}"
     echo -e "   ./scripts/ocompose.sh $INSTANCE up"
@@ -677,6 +787,7 @@ cmd_up() {
     bootstrap_instance_git_repo
     echo -e "${CYAN}🐳 Starting instance '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
     compose_cmd up -d --build "$@"
+    import_mysql_seed_if_configured
     echo ""
     echo -e "${GREEN}✅ Instance '$INSTANCE' is running!${NC}"
     echo -e "   Shell:      ./scripts/ocompose.sh $INSTANCE shell"

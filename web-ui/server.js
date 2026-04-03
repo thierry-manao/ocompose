@@ -10,6 +10,7 @@ const execFileAsync = promisify(execFile);
 const PROJECT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const INSTANCES_DIR = path.join(PROJECT_DIR, 'instances');
+const DB_DIR = path.join(PROJECT_DIR, 'db');
 const TEMPLATE_PATH = path.join(PROJECT_DIR, '.env.example');
 const SCRIPT_PATH = path.join(PROJECT_DIR, 'scripts', 'ocompose.sh');
 
@@ -282,6 +283,22 @@ async function listInstanceNames() {
     }
 }
 
+async function listDbFiles() {
+    try {
+        const entries = await fs.readdir(DB_DIR, { withFileTypes: true });
+        return entries
+            .filter((entry) => entry.isFile() && /\.sql(\.gz)?$/i.test(entry.name))
+            .map((entry) => entry.name)
+            .sort((left, right) => left.localeCompare(right));
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            return [];
+        }
+
+        throw error;
+    }
+}
+
 async function getRunningContainers() {
     try {
         const { stdout } = await execFileAsync('docker', ['ps', '--format', '{{.Names}}'], {
@@ -531,6 +548,7 @@ function sanitizeConfig(inputConfig) {
         'MYSQL_USER',
         'MYSQL_PASSWORD',
         'MYSQL_PORT',
+        'MYSQL_SEED_FILE',
         'PHPMYADMIN_ENABLED',
         'PHPMYADMIN_PORT',
         'WORKSPACE_SSH_PORT',
@@ -756,6 +774,11 @@ async function handleInstanceApi(request, response, url) {
     const pathParts = url.pathname.split('/').filter(Boolean);
     const accessHost = getRequestHostname(request);
     cleanupConsoleSessions();
+
+    if (request.method === 'GET' && url.pathname === '/api/db-files') {
+        sendJson(response, 200, { files: await listDbFiles() });
+        return true;
+    }
 
     if (request.method === 'GET' && url.pathname === '/api/instances') {
         sendJson(response, 200, { instances: await listInstances(accessHost) });

@@ -1,5 +1,6 @@
 const state = {
     instances: [],
+    dbFiles: [],
     selectedInstanceName: null,
     activeView: 'dashboard',
     consoleSessionId: null,
@@ -60,10 +61,38 @@ const fieldNames = [
     'MYSQL_USER',
     'MYSQL_PASSWORD',
     'MYSQL_PORT',
+    'MYSQL_SEED_FILE',
     'PHPMYADMIN_ENABLED',
     'PHPMYADMIN_PORT',
     'WORKSPACE_SSH_PORT',
 ];
+
+function renderDbFileOptions(selectedValue = '') {
+    const element = form.elements.namedItem('MYSQL_SEED_FILE');
+    if (!element) {
+        return;
+    }
+
+    const options = ['<option value="">No seed import</option>'];
+    state.dbFiles.forEach((fileName) => {
+        options.push(`<option value="${fileName}">${fileName}</option>`);
+    });
+
+    if (selectedValue && !state.dbFiles.includes(selectedValue)) {
+        options.push(`<option value="${selectedValue}">${selectedValue} (missing)</option>`);
+    }
+
+    element.innerHTML = options.join('');
+    element.value = selectedValue || '';
+}
+
+async function loadDbFiles() {
+    const payload = await apiRequest('/api/db-files');
+    state.dbFiles = Array.isArray(payload.files) ? payload.files : [];
+
+    const currentValue = form.elements.namedItem('MYSQL_SEED_FILE')?.value || '';
+    renderDbFileOptions(currentValue);
+}
 
 function setMessage(text, isError = false) {
     messageBar.textContent = text;
@@ -380,6 +409,11 @@ function fillForm(instance) {
 
         if (element.type === 'checkbox') {
             element.checked = String(instance.config[fieldName]).toLowerCase() === 'true';
+            return;
+        }
+
+        if (fieldName === 'MYSQL_SEED_FILE') {
+            renderDbFileOptions(instance.config[fieldName] || '');
             return;
         }
 
@@ -758,6 +792,7 @@ logoutButton.addEventListener('click', async () => {
         setFormEnabled(false);
         setConsoleEnabled(false);
         setConsoleStatus('session: offline');
+        await loadDbFiles();
         await refreshInstances();
         setActiveView('dashboard');
         setMessage(state.instances.length ? 'Select an instance to unlock editing.' : 'Create your first instance to unlock the editor.');
