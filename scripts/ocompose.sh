@@ -354,6 +354,9 @@ bootstrap_instance_git_repo() {
             else
                 run_git_repo_command "$repo_url" clone "$repo_url" "$workspace_dir"
             fi
+
+            echo -e "${CYAN}🔒 Setting workspace permissions (775)...${NC}"
+            chmod -R 775 "$workspace_dir" 2>/dev/null || true
             return 0
         fi
 
@@ -374,12 +377,19 @@ bootstrap_instance_git_repo() {
         else
             run_git_repo_command "$repo_url" clone "$repo_url" "$workspace_dir"
         fi
+
+        echo -e "${CYAN}🔒 Setting workspace permissions (775)...${NC}"
+        chmod -R 775 "$workspace_dir" 2>/dev/null || true
     fi
 
     if [[ -n "$branch" ]]; then
         echo -e "${CYAN}🌿 Switching '${BOLD}$INSTANCE${NC}${CYAN}' to branch '${BOLD}$branch${NC}${CYAN}'...${NC}"
         checkout_instance_branch "$workspace_dir" "$branch" "$repo_url"
     fi
+
+    # Set proper permissions for workspace files
+    echo -e "${CYAN}🔒 Setting workspace permissions (775)...${NC}"
+    chmod -R 775 "$workspace_dir" 2>/dev/null || true
 }
 
 has_flag() {
@@ -615,6 +625,9 @@ ensure_instance_files() {
 
     copy_if_missing "$PROJECT_DIR/config/php/php.ini" "$instance_dir/config/php/php.ini"
     copy_if_missing "$PROJECT_DIR/config/mysql/my.cnf" "$instance_dir/config/mysql/my.cnf"
+
+    # Ensure workspace has proper permissions
+    chmod -R 775 "$instance_dir/www" 2>/dev/null || true
 }
 
 sync_instance_env_defaults() {
