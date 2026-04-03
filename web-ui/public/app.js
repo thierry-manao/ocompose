@@ -19,7 +19,6 @@ const statusChip = document.querySelector('#status-chip');
 const messageBar = document.querySelector('#message-bar');
 const heroAppPort = document.querySelector('#hero-app-port');
 const heroMysqlPort = document.querySelector('#hero-mysql-port');
-const heroSshPort = document.querySelector('#hero-ssh-port');
 const refreshButton = document.querySelector('#refresh-button');
 const logoutButton = document.querySelector('#logout-button');
 const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
@@ -225,7 +224,6 @@ function buildSshTarget(port) {
 function updateEndpoints(instance) {
     heroAppPort.textContent = instance?.config?.APP_PORT || '-';
     heroMysqlPort.textContent = instance?.config?.MYSQL_PORT || '-';
-    heroSshPort.textContent = instance?.config?.WORKSPACE_SSH_PORT || '-';
 }
 
 function setConsoleEnabled(enabled) {
@@ -450,7 +448,7 @@ function renderInstances() {
             </div>
             <div class="instance-card__meta">
                 <span><i class="bi bi-globe2"></i> ${instance.config.APP_PORT || '-'}</span>
-                <span><i class="bi bi-terminal"></i> ${instance.config.WORKSPACE_SSH_PORT || '-'}</span>
+                <span><i class="bi bi-database"></i> ${instance.config.MYSQL_PORT || '-'}</span>
             </div>
         `;
 
@@ -530,7 +528,6 @@ function renderDashboardInstances() {
             <div class="dashboard-instance-card__meta">
                 <span><i class="bi bi-globe2"></i> App ${instance.config.APP_PORT || '-'}</span>
                 <span><i class="bi bi-database"></i> MySQL ${instance.config.MYSQL_PORT || '-'}</span>
-                <span><i class="bi bi-terminal"></i> SSH ${instance.config.WORKSPACE_SSH_PORT || '-'}</span>
             </div>
             <div class="dashboard-instance-card__actions">
                 <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-select="${instance.name}">Sélectionner</button>
@@ -540,8 +537,19 @@ function renderDashboardInstances() {
                 <button class="btn btn-sm btn-outline-danger" type="button" data-dashboard-action="destroy" data-dashboard-instance="${instance.name}">Détruire</button>
             </div>
             <div class="dashboard-instance-card__links">
-                ${appUrl ? `<a class="dashboard-link-button" href="${appUrl}" target="_blank" rel="noreferrer">Ouvrir l'app</a>` : ''}
-                ${pmaUrl ? `<a class="dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">Ouvrir phpMyAdmin</a>` : ''}
+                ${(appUrl || pmaUrl) ? `
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-dark dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-three-dots"></i> Ouvrir
+                        </button>
+                        <ul class="dropdown-menu">
+                            ${appUrl ? `<li><a class="dropdown-item" href="${appUrl}" target="_blank" rel="noreferrer"><i class="bi bi-box-arrow-up-right me-2"></i>Application</a></li>` : ''}
+                            ${pmaUrl ? `<li><a class="dropdown-item" href="${pmaUrl}" target="_blank" rel="noreferrer"><i class="bi bi-box-arrow-up-right me-2"></i>phpMyAdmin</a></li>` : ''}
+                        </ul>
+                    </div>
+                ` : ''}
+            </div>
+            <div class="dashboard-instance-card__footer">
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Ouvrir les paramètres</button>
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="shell" data-dashboard-instance="${instance.name}">Ouvrir la console</button>
             </div>

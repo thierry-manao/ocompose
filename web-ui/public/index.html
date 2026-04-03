@@ -193,6 +193,10 @@
                                                 <input class="form-control form-control-lg" type="number" name="APP_PORT">
                                             </div>
                                             <div class="col-md-6">
+                                                <label class="form-label label-caps">Port SSH de l'espace de travail</label>
+                                                <input class="form-control form-control-lg" type="number" name="WORKSPACE_SSH_PORT">
+                                            </div>
+                                            <div class="col-md-6">
                                                 <label class="form-label label-caps">Port MySQL</label>
                                                 <input class="form-control form-control-lg" type="number" name="MYSQL_PORT">
                                             </div>
@@ -350,14 +354,14 @@
                             <div>
                                 <p class="eyebrow eyebrow-dark mb-2">Console</p>
                                 <h2 class="section-title mb-1">Shell</h2>
-                                <p id="console-subtitle" class="section-copy mb-0">Les commandes s'exécutent à l'intérieur du conteneur d'espace de travail sélectionné depuis sa racine de projet.</p>
+                                <p id="console-subtitle" class="section-copy mb-0">Commands run inside the selected workspace container from its project root.</p>
                             </div>
                         </div>
 
                         <div class="console-meta mb-3">
-                            <span id="console-cwd" class="console-badge">cwd: non disponible</span>
-                            <span id="console-status" class="console-badge">session: hors ligne</span>
-                            <button id="console-clear-button" class="btn btn-outline-dark btn-sm rounded-pill ms-auto" type="button">Effacer la sortie</button>
+                            <span id="console-cwd" class="console-badge">cwd: unavailable</span>
+                            <span id="console-status" class="console-badge">session: offline</span>
+                            <button id="console-clear-button" class="btn btn-outline-dark btn-sm rounded-pill ms-auto" type="button">Clear output</button>
                         </div>
 
                         <div class="console-shortcuts mb-3">
@@ -368,10 +372,10 @@
 
                         <form id="console-form" class="console-shell">
                             <div id="console-surface" class="console-surface" tabindex="0">
-                                <pre id="console-output" class="console-output mb-0">Sélectionnez une instance en cours d'exécution pour ouvrir sa console d'espace de travail.</pre>
+                                <pre id="console-output" class="console-output mb-0">Select a running instance to open its workspace console.</pre>
                                 <label class="console-entry" for="console-command">
                                     <span id="console-prompt" class="console-prompt">$</span>
-                                    <input id="console-command" class="console-inline-input" type="text" placeholder="Tapez une commande et appuyez sur Entrée" autocomplete="off" spellcheck="false">
+                                    <input id="console-command" class="console-inline-input" type="text" placeholder="Type a command and press Enter" autocomplete="off" spellcheck="false">
                                 </label>
                             </div>
                         </form>
@@ -381,6 +385,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/app.js"></script>
 </body>
 </html>
