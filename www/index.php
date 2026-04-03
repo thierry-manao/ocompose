@@ -25,24 +25,4 @@ if (!$mysqlEnabled) {
     }
 }
 
-if ($phpMyAdminEnabled) {
-    $escapedPort = htmlspecialchars($phpMyAdminPort, ENT_QUOTES, 'UTF-8');
-    echo "<hr><p><a id='phpmyadmin-link' data-port='" . $escapedPort . "' href='#'>Open phpMyAdmin →</a></p>";
-    echo <<<'HTML'
-<script>
-(() => {
-    const link = document.getElementById('phpmyadmin-link');
-    if (!link) {
-        return;
-    }
-
-    const port = link.dataset.port;
-    const hostname = window.location.hostname || 'localhost';
-    link.href = `http://${hostname}:${port}`;
-})();
-</script>
-HTML;
-} else {
-    echo "<hr><p style='color:#6b7280;'>phpMyAdmin is disabled for this instance.</p>";
-}
 ?>
