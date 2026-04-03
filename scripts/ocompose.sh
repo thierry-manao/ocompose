@@ -166,6 +166,27 @@ ensure_mysql_database_exists() {
         mysql -uroot -e "$create_database_sql"
 }
 
+grant_mysql_user_access() {
+    if [[ ! "${MYSQL_DATABASE:-}" =~ ^[A-Za-z0-9_]+$ ]]; then
+        echo -e "${RED}✗ MYSQL_DATABASE contains unsupported characters for '$INSTANCE'.${NC}"
+        exit 1
+    fi
+
+    if [[ ! "${MYSQL_USER:-}" =~ ^[A-Za-z0-9_]+$ ]]; then
+        echo -e "${RED}✗ MYSQL_USER contains unsupported characters for '$INSTANCE'.${NC}"
+        echo "  Value: ${MYSQL_USER:-}"
+        echo "  Allowed characters: letters, numbers, underscore"
+        exit 1
+    fi
+
+    local grant_sql
+    printf -v grant_sql "CREATE USER IF NOT EXISTS '%s'@'%%' IDENTIFIED BY '%s'; GRANT ALL PRIVILEGES ON \\`%s\\`.* TO '%s'@'%%'; FLUSH PRIVILEGES;" \
+        "$MYSQL_USER" "$MYSQL_PASSWORD" "$MYSQL_DATABASE" "$MYSQL_USER"
+
+    docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" \
+        mysql -uroot -e "$grant_sql"
+}
+
 recreate_mysql_database() {
     if [[ ! "${MYSQL_DATABASE:-}" =~ ^[A-Za-z0-9_]+$ ]]; then
         echo -e "${RED}✗ MYSQL_DATABASE contains unsupported characters for '$INSTANCE'.${NC}"
@@ -212,12 +233,14 @@ import_mysql_seed_if_configured() {
 
     if [[ "$reseed_on_startup" != "true" ]]; then
         ensure_mysql_database_exists
+        grant_mysql_user_access
         if [[ "$current_signature" == "$previous_signature" ]] && mysql_database_has_tables; then
             return 0
         fi
     fi
 
     recreate_mysql_database
+    grant_mysql_user_access
 
     echo -e "${CYAN}🗄 Re-seeding '${BOLD}${MYSQL_DATABASE}${NC}${CYAN}' from '${BOLD}${MYSQL_SEED_FILE}${NC}${CYAN}' for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
     case "$seed_path" in
