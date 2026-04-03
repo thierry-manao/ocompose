@@ -26,6 +26,10 @@ ocompose myapp init
 # (Optional) Edit the config
 nano instances/myapp/.env
 
+# (Optional) Set a repo and branch for auto-bootstrap
+# GIT_REPO=https://github.com/example/project.git
+# GIT_BRANCH=main
+
 # Start it
 ocompose myapp up
 ```
@@ -216,6 +220,15 @@ WORKSPACE_USER=john
 WORKSPACE_UID=1001
 WORKSPACE_GID=1001
 ```
+
+Git bootstrap on startup:
+
+```env
+GIT_REPO=https://github.com/example/project.git
+GIT_BRANCH=main
+```
+
+When these values are set, `ocompose <instance> up` clones the repository into `instances/<name>/www` the first time, then checks out the configured branch on each start. Existing non-empty workspaces are left alone unless they only contain the default placeholder `index.php`.
 
 Per-instance runtime config files are created automatically from the versioned defaults in `config/`:
 

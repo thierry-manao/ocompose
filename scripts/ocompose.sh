@@ -47,6 +47,116 @@ copy_if_missing() {
     fi
 }
 
+workspace_is_empty() {
+    local workspace_dir="$1"
+
+    [[ -z "$(find "$workspace_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]
+}
+
+workspace_has_only_default_index() {
+    local workspace_dir="$1"
+    local index_file="$workspace_dir/index.php"
+    local entry_count
+
+    [[ -f "$index_file" ]] || return 1
+    cmp -s "$index_file" "$PROJECT_DIR/www/index.php" || return 1
+
+    entry_count="$(find "$workspace_dir" -mindepth 1 -maxdepth 1 ! -name '.git' | wc -l | tr -d '[:space:]')"
+    [[ "$entry_count" == "1" ]]
+}
+
+prepare_workspace_for_clone() {
+    local workspace_dir="$1"
+
+    if workspace_is_empty "$workspace_dir"; then
+        return 0
+    fi
+
+    if workspace_has_only_default_index "$workspace_dir"; then
+        rm -f "$workspace_dir/index.php"
+        return 0
+    fi
+
+    echo -e "${RED}✗ Cannot clone into '$workspace_dir' because it already contains files.${NC}"
+    echo "  Remove the existing contents or use an empty instance workspace before enabling GIT_REPO."
+    exit 1
+}
+
+checkout_instance_branch() {
+    local workspace_dir="$1"
+    local branch="$2"
+
+    [[ -z "$branch" ]] && return 0
+
+    if git -C "$workspace_dir" show-ref --verify --quiet "refs/heads/$branch"; then
+        git -C "$workspace_dir" checkout "$branch"
+        return 0
+    fi
+
+    if git -C "$workspace_dir" remote get-url origin >/dev/null 2>&1; then
+        git -C "$workspace_dir" fetch origin "$branch" --prune
+        git -C "$workspace_dir" checkout -B "$branch" --track "origin/$branch"
+        return 0
+    fi
+
+    echo -e "${RED}✗ Branch '$branch' was requested, but no origin remote is configured.${NC}"
+    exit 1
+}
+
+bootstrap_instance_git_repo() {
+    local workspace_dir="$INSTANCES_DIR/$INSTANCE/www"
+    local repo_url="${GIT_REPO:-}"
+    local branch="${GIT_BRANCH:-}"
+    local current_origin=""
+
+    if [[ -z "$repo_url" && -z "$branch" ]]; then
+        return 0
+    fi
+
+    if ! command -v git >/dev/null 2>&1; then
+        echo -e "${RED}✗ Git is required on the host when GIT_REPO or GIT_BRANCH is configured.${NC}"
+        exit 1
+    fi
+
+    mkdir -p "$workspace_dir"
+
+    if [[ -d "$workspace_dir/.git" ]]; then
+        if git -C "$workspace_dir" remote get-url origin >/dev/null 2>&1; then
+            current_origin="$(git -C "$workspace_dir" remote get-url origin)"
+        fi
+
+        if [[ -n "$repo_url" && -n "$current_origin" && "$current_origin" != "$repo_url" ]]; then
+            echo -e "${RED}✗ Existing workspace repo origin does not match GIT_REPO for '$INSTANCE'.${NC}"
+            echo "  Current origin: $current_origin"
+            echo "  Requested:      $repo_url"
+            exit 1
+        fi
+
+        if [[ -n "$repo_url" && -z "$current_origin" ]]; then
+            git -C "$workspace_dir" remote add origin "$repo_url"
+        fi
+    else
+        if [[ -z "$repo_url" ]]; then
+            echo -e "${RED}✗ GIT_BRANCH is set for '$INSTANCE', but there is no cloned repo and GIT_REPO is empty.${NC}"
+            exit 1
+        fi
+
+        prepare_workspace_for_clone "$workspace_dir"
+
+        echo -e "${CYAN}📥 Cloning repository for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
+        if [[ -n "$branch" ]]; then
+            git clone --branch "$branch" --single-branch "$repo_url" "$workspace_dir"
+        else
+            git clone "$repo_url" "$workspace_dir"
+        fi
+    fi
+
+    if [[ -n "$branch" ]]; then
+        echo -e "${CYAN}🌿 Switching '${BOLD}$INSTANCE${NC}${CYAN}' to branch '${BOLD}$branch${NC}${CYAN}'...${NC}"
+        checkout_instance_branch "$workspace_dir" "$branch"
+    fi
+}
+
 has_flag() {
     local expected_flag="$1"
     shift
