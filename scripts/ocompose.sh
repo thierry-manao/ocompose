@@ -604,6 +604,67 @@ cmd_uninstall_cli() {
     fi
 }
 
+configure_codeigniter_env() {
+    local instance_dir="$INSTANCES_DIR/$INSTANCE"
+    local ci_env_file="$instance_dir/www/.env"
+    local ci_env_template="$instance_dir/www/env"
+
+    # Only configure if CodeIgniter env template exists
+    [[ ! -f "$ci_env_template" ]] && return 0
+
+    # Copy template if .env doesn't exist
+    if [[ ! -f "$ci_env_file" ]]; then
+        cp "$ci_env_template" "$ci_env_file"
+    fi
+
+    # Build base URL
+    local base_url="${APP_BASE_URL:-}"
+    if [[ -z "$base_url" ]]; then
+        base_url="http://localhost:${APP_PORT:-8000}/"
+    fi
+    [[ "$base_url" != */ ]] && base_url="${base_url}/"
+
+    # Configure CodeIgniter .env
+    echo -e "${CYAN}⚙️  Configuring CodeIgniter environment...${NC}"
+
+    # Set CI_ENVIRONMENT
+    if grep -q "^#.*CI_ENVIRONMENT" "$ci_env_file"; then
+        sed -i "s|^#.*CI_ENVIRONMENT.*|CI_ENVIRONMENT = development|" "$ci_env_file"
+    elif ! grep -q "^CI_ENVIRONMENT" "$ci_env_file"; then
+        echo "CI_ENVIRONMENT = development" >> "$ci_env_file"
+    fi
+
+    # Set app.baseURL
+    if grep -q "^#.*app\.baseURL" "$ci_env_file"; then
+        sed -i "s|^#.*app\.baseURL.*|app.baseURL = '${base_url}'|" "$ci_env_file"
+    elif grep -q "^app\.baseURL" "$ci_env_file"; then
+        sed -i "s|^app\.baseURL.*|app.baseURL = '${base_url}'|" "$ci_env_file"
+    else
+        echo "app.baseURL = '${base_url}'" >> "$ci_env_file"
+    fi
+
+    # Disable force HTTPS
+    if grep -q "^#.*app\.forceGlobalSecureRequests" "$ci_env_file"; then
+        sed -i "s|^#.*app\.forceGlobalSecureRequests.*|app.forceGlobalSecureRequests = false|" "$ci_env_file"
+    elif grep -q "^app\.forceGlobalSecureRequests" "$ci_env_file"; then
+        sed -i "s|^app\.forceGlobalSecureRequests.*|app.forceGlobalSecureRequests = false|" "$ci_env_file"
+    else
+        echo "app.forceGlobalSecureRequests = false" >> "$ci_env_file"
+    fi
+
+    # Set database config if MySQL is enabled
+    if [[ "${MYSQL_ENABLED:-false}" == "true" ]]; then
+        if ! grep -q "^database\.default\.hostname" "$ci_env_file"; then
+            echo "" >> "$ci_env_file"
+            echo "database.default.hostname = mysql" >> "$ci_env_file"
+            echo "database.default.database = ${MYSQL_DATABASE:-app_db}" >> "$ci_env_file"
+            echo "database.default.username = ${MYSQL_USER:-app}" >> "$ci_env_file"
+            echo "database.default.password = ${MYSQL_PASSWORD:-secret}" >> "$ci_env_file"
+            echo "database.default.DBDriver = MySQLi" >> "$ci_env_file"
+        fi
+    fi
+}
+
 ensure_instance_files() {
     local instance_dir="$INSTANCES_DIR/$INSTANCE"
 
@@ -628,9 +689,16 @@ ensure_instance_files() {
 
     # Ensure workspace has proper permissions
     chmod -R 777 "$instance_dir/www" 2>/dev/null || true
+
+    # Configure CodeIgniter if present
+    configure_codeigniter_env
 }
 
 sync_instance_env_defaults() {
+    local env_file="$INSTANCES_DIR/$INSTANCE/.env"
+
+    [[ -f "$env_file" ]] || return 0
+
     while IFS= read -r template_line; do
         local trimmed_line key
 

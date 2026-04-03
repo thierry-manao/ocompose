@@ -228,6 +228,20 @@ http://localhost:8000
 
 This is useful when your cloned Git repository has its own entry point structure.
 
+**CodeIgniter auto-configuration:**
+
+```env
+APP_BASE_URL=http://163.172.215.243:8000
+```
+
+When you restart an instance with a CodeIgniter 4 project, ocompose will automatically configure the `.env` file inside your workspace to:
+- Set `CI_ENVIRONMENT = development`
+- Set `app.baseURL` to your `APP_BASE_URL` (or auto-detect from `APP_PORT` if empty)
+- Disable `app.forceGlobalSecureRequests` to prevent HTTPS redirects
+- Configure database connection using your MySQL settings
+
+This means CodeIgniter projects work out of the box without manual `.env` editing.
+
 Change versions:
 
 ```env
