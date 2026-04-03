@@ -541,7 +541,6 @@ function sanitizeConfig(inputConfig) {
         'PHP_VERSION',
         'PHP_EXTENSIONS',
         'APP_PORT',
-        'APP_BASE_URL',
         'NGINX_DOCUMENT_ROOT',
         'MYSQL_ENABLED',
         'MYSQL_VERSION',

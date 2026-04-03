@@ -620,7 +620,17 @@ configure_codeigniter_env() {
     # Build base URL
     local base_url="${APP_BASE_URL:-}"
     if [[ -z "$base_url" ]]; then
-        base_url="http://localhost:${APP_PORT:-8000}/"
+        # Auto-detect server IP or hostname
+        local server_host="localhost"
+
+        # Try to get primary IP address
+        if command -v hostname >/dev/null 2>&1; then
+            local detected_ip
+            detected_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+            [[ -n "$detected_ip" ]] && server_host="$detected_ip"
+        fi
+
+        base_url="http://${server_host}:${APP_PORT:-8000}/"
     fi
     [[ "$base_url" != */ ]] && base_url="${base_url}/"
 
