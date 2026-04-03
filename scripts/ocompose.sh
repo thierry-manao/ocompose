@@ -53,13 +53,22 @@ workspace_is_empty() {
     [[ -z "$(find "$workspace_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]
 }
 
+is_ocompose_placeholder_index() {
+    local index_file="$1"
+
+    [[ -f "$index_file" ]] || return 1
+    grep -q "getenv('PROJECT_NAME')" "$index_file" || return 1
+    grep -q "MySQL Connection" "$index_file" || return 1
+    grep -q "phpversion()" "$index_file" || return 1
+}
+
 workspace_has_only_default_index() {
     local workspace_dir="$1"
     local index_file="$workspace_dir/index.php"
     local entry_count
 
     [[ -f "$index_file" ]] || return 1
-    cmp -s "$index_file" "$PROJECT_DIR/www/index.php" || return 1
+    is_ocompose_placeholder_index "$index_file" || return 1
 
     entry_count="$(find "$workspace_dir" -mindepth 1 -maxdepth 1 ! -name '.git' | wc -l | tr -d '[:space:]')"
     [[ "$entry_count" == "1" ]]
