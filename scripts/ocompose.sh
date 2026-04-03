@@ -381,6 +381,24 @@ ensure_instance_files() {
     copy_if_missing "$PROJECT_DIR/config/mysql/my.cnf" "$instance_dir/config/mysql/my.cnf"
 }
 
+sync_instance_env_defaults() {
+    local env_file="$INSTANCES_DIR/$INSTANCE/.env"
+
+    [[ -f "$env_file" ]] || return 0
+
+    while IFS= read -r template_line; do
+        local trimmed_line key
+
+        trimmed_line="${template_line%$'\r'}"
+        [[ -z "$trimmed_line" || "$trimmed_line" == \#* || "$trimmed_line" != *=* ]] && continue
+
+        key="${trimmed_line%%=*}"
+        if ! grep -qE "^${key}=" "$env_file"; then
+            printf '\n%s\n' "$trimmed_line" >> "$env_file"
+        fi
+    done < "$PROJECT_DIR/.env.example"
+}
+
 # ── Load instance env ──
 load_instance_env() {
     local env_file="$INSTANCES_DIR/$INSTANCE/.env"
@@ -390,6 +408,8 @@ load_instance_env() {
         echo "  Run: ocompose.sh $INSTANCE init"
         exit 1
     fi
+
+    sync_instance_env_defaults
 
     # Accept .env files created on Windows by stripping CRLF before sourcing.
     normalized_env_file="$(normalize_env_file)"
@@ -607,6 +627,7 @@ cmd_ui() {
 cmd_up() {
     require_instance
     load_instance_env
+    bootstrap_instance_git_repo
     echo -e "${CYAN}🐳 Starting instance '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
     compose_cmd up -d --build "$@"
     echo ""
