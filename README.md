@@ -253,7 +253,6 @@ Per-instance runtime config files are created automatically from the versioned d
 instances/<name>/config/nginx/default.conf
 instances/<name>/config/php/php.ini
 instances/<name>/config/mysql/my.cnf
-instances/<name>/seed-state/
 ```
 
 That means one instance can change PHP, MySQL, or Nginx settings without affecting the others.
@@ -266,9 +265,9 @@ db/gescom.sql
 db/paie.sql
 ```
 
-Set `MYSQL_SEED_FILE` to one of the files in `db/`. On `ocompose <instance> up`, ocompose waits for MySQL to be ready, creates `MYSQL_DATABASE` if needed, and imports the selected dump into it.
+Set `MYSQL_SEED_FILE` to one of the files in `db/`. On every `ocompose <instance> up`, ocompose waits for MySQL to be ready, drops and recreates `MYSQL_DATABASE`, then imports the selected dump into it.
 
-The selected dump is tracked per instance in `instances/<name>/seed-state/mysql-seed.signature`, so the same file is not imported again on every restart. If you switch to a different dump file, change `MYSQL_DATABASE`, or the dump content changes, the import runs again on the next `up`.
+That means `up` and `restart` always re-seed the selected database when `MYSQL_SEED_FILE` is set. Existing data in that database is intentionally replaced each time.
 
 ---
 
@@ -285,12 +284,10 @@ ocompose/
 │   │   │   ├── nginx/default.conf
 │   │   │   ├── php/php.ini
 │   │   │   └── mysql/my.cnf
-│   │   ├── seed-state/
 │   │   └── www/
 │   └── blog/
 │       ├── .env
 │       ├── config/
-│       ├── seed-state/
 │       └── www/
 ├── db/
 │   ├── compta.sql
