@@ -516,7 +516,6 @@ function renderDashboardInstances() {
     state.instances.forEach((instance) => {
         const appUrl = buildHttpAccessUrl(instance?.config?.APP_PORT) || instance?.urls?.app || null;
         const pmaUrl = buildHttpAccessUrl(instance?.config?.PHPMYADMIN_PORT) || instance?.urls?.phpmyadmin || null;
-        const sshUrl = buildSshTarget(instance?.config?.WORKSPACE_SSH_PORT) || instance?.urls?.ssh || null;
 
         const card = document.createElement('article');
         card.className = `dashboard-instance-card${instance.name === state.selectedInstanceName ? ' active' : ''}`;
@@ -542,8 +541,7 @@ function renderDashboardInstances() {
             </div>
             <div class="dashboard-instance-card__links">
                 ${appUrl ? `<a class="dashboard-link-button" href="${appUrl}" target="_blank" rel="noreferrer">Open app</a>` : ''}
-                ${pmaUrl ? `<a class="dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">phpMyAdmin</a>` : ''}
-                ${sshUrl ? `<span class="dashboard-link-pill">SSH ${sshUrl}</span>` : ''}
+                ${pmaUrl ? `<a class="dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">Open phpMyAdmin</a>` : ''}
             </div>
             <div class="dashboard-instance-card__footer">
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Open settings</button>

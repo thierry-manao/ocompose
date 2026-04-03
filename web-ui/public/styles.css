@@ -492,17 +492,6 @@ body.app-body::before {
     color: var(--mint);
 }
 
-.dashboard-link-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.45rem 0.8rem;
-    border-radius: 999px;
-    background: rgba(13, 23, 38, 0.08);
-    color: var(--ink);
-    font-size: 0.82rem;
-    font-weight: 700;
-}
-
 .view-panel {
     display: none;
 }
