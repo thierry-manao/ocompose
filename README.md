@@ -212,6 +212,7 @@ App access:
 
 ```env
 APP_PORT=8000
+NGINX_DOCUMENT_ROOT=public
 ```
 
 Then open:
@@ -219,6 +220,13 @@ Then open:
 ```text
 http://localhost:8000
 ```
+
+`NGINX_DOCUMENT_ROOT` specifies the subdirectory inside your workspace that nginx should serve. For example:
+- Leave empty (or set to `/`) to serve from the workspace root
+- Set to `public` to serve from `/var/www/html/public`
+- Set to `web` for Laravel-style projects that use `web/index.php`
+
+This is useful when your cloned Git repository has its own entry point structure.
 
 Change versions:
 

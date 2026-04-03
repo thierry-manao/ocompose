@@ -602,7 +602,17 @@ ensure_instance_files() {
     mkdir -p "$instance_dir/seed-state"
 
     copy_if_missing "$PROJECT_DIR/www/index.php" "$instance_dir/www/index.php"
-    copy_if_missing "$PROJECT_DIR/config/nginx/default.conf" "$instance_dir/config/nginx/default.conf"
+
+    # Generate nginx config with document root
+    local nginx_target="$instance_dir/config/nginx/default.conf"
+    local document_root="${NGINX_DOCUMENT_ROOT:-}"
+    [[ -n "$document_root" && "$document_root" != "/" ]] && document_root="/$document_root"
+    document_root="${document_root#/}"
+    [[ -n "$document_root" ]] && document_root="/$document_root"
+
+    sed "s|__DOCUMENT_ROOT__|${document_root}|g" \
+        "$PROJECT_DIR/config/nginx/default.conf" > "$nginx_target"
+
     copy_if_missing "$PROJECT_DIR/config/php/php.ini" "$instance_dir/config/php/php.ini"
     copy_if_missing "$PROJECT_DIR/config/mysql/my.cnf" "$instance_dir/config/mysql/my.cnf"
 }
