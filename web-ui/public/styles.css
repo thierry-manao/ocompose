@@ -542,6 +542,13 @@ body.app-body::before {
     gap: 1rem;
 }
 
+.settings-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
 .console-form,
 .console-shortcuts,
 .console-meta {

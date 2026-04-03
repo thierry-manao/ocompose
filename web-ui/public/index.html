@@ -153,7 +153,13 @@
                                     <h2 class="section-title mb-1">Settings</h2>
                                     <p class="section-copy mb-0">Edit the real instance `.env` without mixing it into the runtime dashboard.</p>
                                 </div>
-                                <button id="save-button" class="btn btn-dark btn-lg" type="submit"><i class="bi bi-save me-2"></i>Save configuration</button>
+                                <div class="settings-actions">
+                                    <button class="btn btn-success" type="button" data-action="up"><i class="bi bi-play-fill me-2"></i>Up</button>
+                                    <button class="btn btn-outline-dark" type="button" data-action="down"><i class="bi bi-stop-fill me-2"></i>Down</button>
+                                    <button class="btn btn-outline-dark" type="button" data-action="restart"><i class="bi bi-arrow-repeat me-2"></i>Restart</button>
+                                    <button class="btn btn-outline-danger" type="button" data-action="destroy"><i class="bi bi-trash3 me-2"></i>Destroy</button>
+                                    <button id="save-button" class="btn btn-dark btn-lg" type="submit"><i class="bi bi-save me-2"></i>Save configuration</button>
+                                </div>
                             </div>
                         </section>
 
