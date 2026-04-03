@@ -99,6 +99,25 @@ run_git_repo_command() {
     git "$@"
 }
 
+seed_state_dir() {
+    echo "$INSTANCES_DIR/$INSTANCE/seed-state"
+}
+
+seed_marker_file() {
+    echo "$(seed_state_dir)/mysql-seed.signature"
+}
+
+compute_file_signature() {
+    local file_path="$1"
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file_path" | awk '{print $1}'
+        return
+    fi
+
+    wc -c < "$file_path" | tr -d '[:space:]'
+}
+
 resolve_mysql_seed_file() {
     local seed_file="${MYSQL_SEED_FILE:-}"
     local base_name
@@ -162,8 +181,17 @@ recreate_mysql_database() {
         mysql -uroot -e "$recreate_database_sql"
 }
 
+mysql_database_has_tables() {
+    local count_tables_sql table_count
+    printf -v count_tables_sql "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '%s';" "$MYSQL_DATABASE"
+
+    table_count="$(docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" mysql -uroot -N -s -e "$count_tables_sql" 2>/dev/null | tr -d '[:space:]')"
+    [[ -n "$table_count" && "$table_count" != "0" ]]
+}
+
 import_mysql_seed_if_configured() {
-    local seed_path
+    local seed_path marker_file current_signature previous_signature
+    local reseed_on_startup="${MYSQL_RESEED_ON_STARTUP:-true}"
 
     [[ "${MYSQL_ENABLED:-false}" == "true" ]] || return 0
     seed_path="$(resolve_mysql_seed_file)"
@@ -176,6 +204,19 @@ import_mysql_seed_if_configured() {
     fi
 
     wait_for_mysql_ready
+
+    marker_file="$(seed_marker_file)"
+    mkdir -p "$(seed_state_dir)"
+    current_signature="${MYSQL_DATABASE}:${MYSQL_SEED_FILE}:$(compute_file_signature "$seed_path")"
+    previous_signature="$(cat "$marker_file" 2>/dev/null || true)"
+
+    if [[ "$reseed_on_startup" != "true" ]]; then
+        ensure_mysql_database_exists
+        if [[ "$current_signature" == "$previous_signature" ]] && mysql_database_has_tables; then
+            return 0
+        fi
+    fi
+
     recreate_mysql_database
 
     echo -e "${CYAN}🗄 Re-seeding '${BOLD}${MYSQL_DATABASE}${NC}${CYAN}' from '${BOLD}${MYSQL_SEED_FILE}${NC}${CYAN}' for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
@@ -192,6 +233,8 @@ import_mysql_seed_if_configured() {
             exit 1
             ;;
     esac
+
+    printf '%s' "$current_signature" > "$marker_file"
 }
 
 workspace_has_only_default_index() {
@@ -516,6 +559,7 @@ ensure_instance_files() {
 
     mkdir -p "$instance_dir/www"
     mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql"
+    mkdir -p "$instance_dir/seed-state"
 
     copy_if_missing "$PROJECT_DIR/www/index.php" "$instance_dir/www/index.php"
     copy_if_missing "$PROJECT_DIR/config/nginx/default.conf" "$instance_dir/config/nginx/default.conf"
@@ -612,6 +656,7 @@ cmd_init() {
 
     mkdir -p "$instance_dir/www"
     mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql"
+    mkdir -p "$instance_dir/seed-state"
 
     # Copy template and inject instance name
     sed "s/^PROJECT_NAME=.*/PROJECT_NAME=$INSTANCE/" \
@@ -637,6 +682,7 @@ cmd_init() {
     echo -e "   Config: $instance_dir/.env"
     echo -e "   Webroot: $instance_dir/www/"
     echo -e "   Runtime config: $instance_dir/config/"
+    echo -e "   DB seed state: $instance_dir/seed-state/"
     echo ""
     echo -e "   ${CYAN}Edit the .env file, then run:${NC}"
     echo -e "   ./scripts/ocompose.sh $INSTANCE up"

@@ -549,6 +549,7 @@ function sanitizeConfig(inputConfig) {
         'MYSQL_PASSWORD',
         'MYSQL_PORT',
         'MYSQL_SEED_FILE',
+        'MYSQL_RESEED_ON_STARTUP',
         'PHPMYADMIN_ENABLED',
         'PHPMYADMIN_PORT',
         'WORKSPACE_SSH_PORT',
