@@ -564,6 +564,12 @@ function sanitizeConfig(inputConfig) {
         'PHPMYADMIN_ENABLED',
         'PHPMYADMIN_PORT',
         'WORKSPACE_SSH_PORT',
+        'APP_BASE_URL',
+        'CI3_ENABLED',
+        'CI3_EXTRA_CONSTANTS',
+        'CI3_APP_ROOT',
+        'CI3_SESSION_SAVE_PATH',
+        'CI3_BASE_URL',
     ]);
 
     const output = {};

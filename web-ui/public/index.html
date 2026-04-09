@@ -135,6 +135,7 @@
                                 <button class="settings-tab-button active" type="button" data-settings-tab="stack">Stack</button>
                                 <button class="settings-tab-button" type="button" data-settings-tab="workspace">Espace de travail & Git</button>
                                 <button class="settings-tab-button" type="button" data-settings-tab="database">Base de données</button>
+                                <button class="settings-tab-button" type="button" data-settings-tab="ci3">CodeIgniter 3</button>
                             </div>
                         </section>
 
@@ -346,6 +347,76 @@
                                 </div>
                             </div>
                         </section>
+                        <section class="settings-tab-panel" data-settings-tab-panel="ci3">
+                            <div class="row g-4">
+                                <div class="col-12 col-xxl-8">
+                                    <section class="card-shell p-4 p-lg-5 h-100">
+                                        <div class="section-header mb-4">
+                                            <div class="section-icon"><i class="bi bi-gear-wide-connected"></i></div>
+                                            <div>
+                                                <p class="eyebrow eyebrow-dark mb-2">Framework</p>
+                                                <h2 class="section-title mb-1">CodeIgniter 3</h2>
+                                                <p class="section-copy mb-0">Configuration automatique pour les applications CI3. Détecté automatiquement si <code>application/config/</code> et <code>system/core/</code> existent.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Activation CI3</label>
+                                                <select class="form-select" name="CI3_ENABLED">
+                                                    <option value="auto">Auto-détection</option>
+                                                    <option value="true">Toujours actif</option>
+                                                    <option value="false">Désactivé</option>
+                                                </select>
+                                                <div class="form-text mt-1">En mode auto, ocompose détecte la structure CI3 dans le workspace.</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">URL de base de l'application</label>
+                                                <input class="form-control" type="text" name="CI3_BASE_URL" placeholder="http://localhost:8000/">
+                                                <div class="form-text mt-1">Injecté dans <code>$config['base_url']</code>. Vide = auto depuis VHOSTS.</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Chemin des sessions</label>
+                                                <input class="form-control" type="text" name="CI3_SESSION_SAVE_PATH" placeholder="/tmp/ci_sessions">
+                                                <div class="form-text mt-1">Injecté dans <code>$config['sess_save_path']</code>.</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Racine de l'application</label>
+                                                <input class="form-control" type="text" name="CI3_APP_ROOT" placeholder="/var/www/html">
+                                                <div class="form-text mt-1">Injecté dans <code>define('APP_ROOT', ...)</code>. Vide = auto.</div>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label label-caps">Constantes supplémentaires</label>
+                                                <input class="form-control" type="text" name="CI3_EXTRA_CONSTANTS" placeholder="URL_LICENCE=URL_LICENCE,URL_API=URL_API">
+                                                <div class="form-text mt-1">Paires <code>NOM_CONSTANTE=NOM_ENV_VAR</code> séparées par virgules. Les constantes seront définies depuis les variables d'environnement Docker correspondantes.</div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <div class="col-12 col-xxl-4">
+                                    <section class="card-shell p-4 p-lg-5 h-100">
+                                        <div class="section-header mb-4">
+                                            <div class="section-icon"><i class="bi bi-link-45deg"></i></div>
+                                            <div>
+                                                <p class="eyebrow eyebrow-dark mb-2">Général</p>
+                                                <h2 class="section-title mb-1">URL de base</h2>
+                                                <p class="section-copy mb-0">URL globale de l'application, utilisée aussi par CI4 si présent.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label label-caps">APP_BASE_URL</label>
+                                                <input class="form-control" type="text" name="APP_BASE_URL" placeholder="http://localhost:8000/">
+                                                <div class="form-text mt-1">Utilisé comme fallback par CI3 et CI4 si leur URL spécifique n'est pas définie.</div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+                            </div>
+                        </section>
+
                     </form>
                 </section>
 
