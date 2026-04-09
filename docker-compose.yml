@@ -13,6 +13,7 @@ services:
     hostname: ${PROJECT_NAME}-workspace
     volumes:
       - ./instances/${PROJECT_NAME}/www:/home/${WORKSPACE_USER:-developer}/workspace
+      - ./instances/${PROJECT_NAME}/config/ssh/authorized_keys:/home/${WORKSPACE_USER:-developer}/.ssh/authorized_keys:ro
     ports:
       - "${WORKSPACE_SSH_PORT:-2222}:22"
     networks:

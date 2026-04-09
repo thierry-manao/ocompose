@@ -680,6 +680,7 @@ ensure_instance_files() {
 
     mkdir -p "$instance_dir/www"
     mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql"
+    mkdir -p "$instance_dir/config/ssh"
     mkdir -p "$instance_dir/seed-state"
 
     copy_if_missing "$PROJECT_DIR/www/index.php" "$instance_dir/www/index.php"
@@ -793,6 +794,7 @@ cmd_init() {
 
     mkdir -p "$instance_dir/www"
     mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql"
+    mkdir -p "$instance_dir/config/ssh"
     mkdir -p "$instance_dir/seed-state"
 
     # Copy template and inject instance name
@@ -815,11 +817,24 @@ cmd_init() {
     # Copy default index.php
     ensure_instance_files
 
+    # Generate SSH keypair for the instance
+    if [[ ! -f "$instance_dir/config/ssh/id_ed25519" ]]; then
+        ssh-keygen -t ed25519 -f "$instance_dir/config/ssh/id_ed25519" -N "" -C "ocompose-$INSTANCE" -q
+        cp "$instance_dir/config/ssh/id_ed25519.pub" "$instance_dir/config/ssh/authorized_keys"
+        chmod 600 "$instance_dir/config/ssh/authorized_keys"
+    fi
+
+    local ssh_port
+    ssh_port=$(grep "^WORKSPACE_SSH_PORT=" "$instance_dir/.env" | cut -d= -f2)
+
     echo -e "${GREEN}✅ Instance '$INSTANCE' created!${NC}"
     echo -e "   Config: $instance_dir/.env"
     echo -e "   Webroot: $instance_dir/www/"
     echo -e "   Runtime config: $instance_dir/config/"
     echo -e "   DB seed state: $instance_dir/seed-state/"
+    echo ""
+    echo -e "   ${CYAN}SSH private key: $instance_dir/config/ssh/id_ed25519${NC}"
+    echo -e "   ${CYAN}Connect with:    ssh -i $instance_dir/config/ssh/id_ed25519 -p ${ssh_port:-2222} developer@<host>${NC}"
     echo ""
     echo -e "   ${CYAN}Edit the .env file, then run:${NC}"
     echo -e "   ./scripts/ocompose.sh $INSTANCE up"
@@ -984,6 +999,30 @@ cmd_shell() {
     docker exec -it "${INSTANCE}_workspace" bash
 }
 
+cmd_ssh_info() {
+    require_instance
+    load_instance_env
+    local instance_dir="$INSTANCES_DIR/$INSTANCE"
+    local key_file="$instance_dir/config/ssh/id_ed25519"
+    local auth_file="$instance_dir/config/ssh/authorized_keys"
+    local ssh_port="${WORKSPACE_SSH_PORT:-2222}"
+    local hostname
+    hostname=$(hostname -f 2>/dev/null || hostname)
+
+    echo -e "${CYAN}🔑 SSH info for '${INSTANCE}':${NC}"
+    echo ""
+    echo -e "   Port:           ${BOLD}${ssh_port}${NC}"
+    echo -e "   User:           ${BOLD}${WORKSPACE_USER:-developer}${NC}"
+    echo -e "   Private key:    $key_file"
+    echo -e "   Authorized keys: $auth_file"
+    echo ""
+    echo -e "   ${CYAN}Connect:${NC}"
+    echo -e "   ssh -i $key_file -p $ssh_port ${WORKSPACE_USER:-developer}@$hostname"
+    echo ""
+    echo -e "   ${CYAN}Give a dev access (append their public key):${NC}"
+    echo -e "   cat their_key.pub >> $auth_file"
+}
+
 cmd_status() {
     require_instance
     load_instance_env
@@ -1087,6 +1126,7 @@ cmd_help() {
     echo "  down       Stop the instance"
     echo "  restart    Restart the instance"
     echo "  shell      Open bash in the workspace"
+    echo "  ssh-info   Show SSH connection details"
     echo "  status     Show container status"
     echo "  logs       Tail logs"
     echo "  destroy    Remove instance entirely"
@@ -1134,6 +1174,7 @@ case "$COMMAND" in
     down)    cmd_down "$@" ;;
     restart) cmd_restart ;;
     shell)   cmd_shell ;;
+    ssh-info) cmd_ssh_info ;;
     status)  cmd_status ;;
     logs)    cmd_logs "$@" ;;
     destroy) cmd_destroy "$@" ;;

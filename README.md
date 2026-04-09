@@ -123,6 +123,7 @@ Commands:
   down       Stop the instance
   restart    Restart the instance
   shell      Open bash in the workspace
+  ssh-info   Show SSH connection details
   status     Show container status
   logs       Tail logs
   destroy    Remove instance entirely
@@ -276,6 +277,9 @@ Per-instance runtime config files are created automatically from the versioned d
 instances/<name>/config/nginx/default.conf
 instances/<name>/config/php/php.ini
 instances/<name>/config/mysql/my.cnf
+instances/<name>/config/ssh/authorized_keys
+instances/<name>/config/ssh/id_ed25519
+instances/<name>/config/ssh/id_ed25519.pub
 instances/<name>/seed-state/
 ```
 
@@ -309,7 +313,11 @@ ocompose/
 │   │   ├── config/
 │   │   │   ├── nginx/default.conf
 │   │   │   ├── php/php.ini
-│   │   │   └── mysql/my.cnf
+│   │   │   ├── mysql/my.cnf
+│   │   │   └── ssh/
+│   │   │       ├── authorized_keys
+│   │   │       ├── id_ed25519
+│   │   │       └── id_ed25519.pub
 │   │   ├── seed-state/
 │   │   └── www/
 │   └── blog/
@@ -333,6 +341,42 @@ ocompose/
 └── www/
     └── index.php               # Default landing page template
 ```
+
+---
+
+## SSH Access
+
+Each instance runs an SSH server so external developers can connect directly to the workspace container.
+
+**How it works:**
+
+- `ocompose <instance> init` generates an ed25519 keypair in `instances/<name>/config/ssh/`
+- The public key is automatically added to `authorized_keys`
+- The workspace container starts `sshd` on port 22, exposed on the host via `WORKSPACE_SSH_PORT`
+- Password authentication is disabled — only key-based access is allowed
+
+**Give a dev access using the generated key:**
+
+```bash
+# Show SSH connection details
+ocompose myapp ssh-info
+
+# Send the private key to the dev
+# They connect with:
+ssh -i id_ed25519 -p 2222 developer@your-server
+```
+
+**Give a dev access using their own key:**
+
+```bash
+# Append their public key to the instance authorized_keys
+cat their_key.pub >> instances/myapp/config/ssh/authorized_keys
+
+# They connect with:
+ssh -p 2222 developer@your-server
+```
+
+No container restart is needed after adding keys — sshd reads `authorized_keys` on each connection.
 
 ---
 
