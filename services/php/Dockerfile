@@ -57,5 +57,8 @@ RUN ln -sf /etc/php/custom.ini /etc/php/${PHP_VERSION}/fpm/conf.d/99-custom.ini 
 
 WORKDIR /var/www/html
 
+# ── CI3 session directory (writable by PHP-FPM) ──
+RUN mkdir -p /tmp/ci_sessions && chmod 1733 /tmp/ci_sessions
+
 EXPOSE 9000
 CMD ["sh", "-c", "php-fpm${PHP_VERSION} --nodaemonize"]
