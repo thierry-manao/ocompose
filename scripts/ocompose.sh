@@ -129,15 +129,47 @@ compute_file_signature() {
     wc -c < "$file_path" | tr -d '[:space:]'
 }
 
-resolve_mysql_seed_file() {
-    local seed_file="${MYSQL_SEED_FILE:-}"
+# ── Backward-compatibility: map legacy vars to new generic names ──
+resolve_legacy_vars() {
+    # Old PHP_ENABLED / MYSQL_ENABLED / PHPMYADMIN_ENABLED → new generic vars
+    if [[ -n "${PHP_ENABLED:-}" && -z "${APP_RUNTIME:-}" ]]; then
+        [[ "${PHP_ENABLED}" == "true" ]] && export APP_RUNTIME="php" || export APP_RUNTIME="none"
+    fi
+    if [[ -n "${MYSQL_ENABLED:-}" && -z "${DB_ENGINE:-}" ]]; then
+        [[ "${MYSQL_ENABLED}" == "true" ]] && export DB_ENGINE="mysql" || export DB_ENGINE="none"
+    fi
+    if [[ -n "${PHPMYADMIN_ENABLED:-}" && -z "${DB_ADMIN_ENABLED:-}" ]]; then
+        export DB_ADMIN_ENABLED="${PHPMYADMIN_ENABLED}"
+    fi
+
+    # Map old MYSQL_* vars to DB_* if the new ones are missing
+    [[ -n "${MYSQL_VERSION:-}" && -z "${DB_VERSION:-}" ]]        && export DB_VERSION="${MYSQL_VERSION}"
+    [[ -n "${MYSQL_ROOT_PASSWORD:-}" && -z "${DB_ROOT_PASSWORD:-}" ]] && export DB_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD}"
+    [[ -n "${MYSQL_DATABASE:-}" && -z "${DB_DATABASE:-}" ]]      && export DB_DATABASE="${MYSQL_DATABASE}"
+    [[ -n "${MYSQL_USER:-}" && -z "${DB_USER:-}" ]]              && export DB_USER="${MYSQL_USER}"
+    [[ -n "${MYSQL_PASSWORD:-}" && -z "${DB_PASSWORD:-}" ]]      && export DB_PASSWORD="${MYSQL_PASSWORD}"
+    [[ -n "${MYSQL_PORT:-}" && -z "${DB_PORT:-}" ]]              && export DB_PORT="${MYSQL_PORT}"
+    [[ -n "${MYSQL_SEED_FILE:-}" && -z "${DB_SEED_FILE:-}" ]]    && export DB_SEED_FILE="${MYSQL_SEED_FILE}"
+    [[ -n "${MYSQL_RESEED_ON_STARTUP:-}" && -z "${DB_RESEED_ON_STARTUP:-}" ]] && export DB_RESEED_ON_STARTUP="${MYSQL_RESEED_ON_STARTUP}"
+    [[ -n "${PHPMYADMIN_PORT:-}" && -z "${DB_ADMIN_PORT:-}" ]]   && export DB_ADMIN_PORT="${PHPMYADMIN_PORT}"
+
+    # Ensure backward-compat aliases exist so CI3 prepend and docker-compose work
+    export MYSQL_HOST="${DB_ENGINE:-mysql}"
+    export MYSQL_DATABASE="${DB_DATABASE:-app_db}"
+    export MYSQL_USER="${DB_USER:-app}"
+    export MYSQL_PASSWORD="${DB_PASSWORD:-}"
+    export MYSQL_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-root}"
+}
+
+resolve_db_seed_file() {
+    local seed_file="${DB_SEED_FILE:-}"
     local base_name
 
     [[ -n "$seed_file" ]] || return 0
 
     base_name="$(basename "$seed_file")"
     if [[ "$base_name" != "$seed_file" ]]; then
-        echo -e "${RED}✗ MYSQL_SEED_FILE must be a filename from the db directory for '$INSTANCE'.${NC}"
+        echo -e "${RED}✗ DB_SEED_FILE must be a filename from the db directory for '$INSTANCE'.${NC}"
         echo "  Value: $seed_file"
         exit 1
     fi
@@ -145,126 +177,206 @@ resolve_mysql_seed_file() {
     echo "$PROJECT_DIR/db/$seed_file"
 }
 
-wait_for_mysql_ready() {
+# ── Resolve the container name for the active DB engine ──
+db_container_name() {
+    echo "${INSTANCE}_${DB_ENGINE:-mysql}"
+}
+
+wait_for_db_ready() {
     local max_attempts=30
     local attempt=1
+    local container
+    container="$(db_container_name)"
+    local engine="${DB_ENGINE:-mysql}"
 
     while [[ $attempt -le $max_attempts ]]; do
-        if docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" mysqladmin ping -h 127.0.0.1 -uroot --silent >/dev/null 2>&1; then
-            return 0
-        fi
+        case "$engine" in
+            mysql|mariadb)
+                if docker exec -e MYSQL_PWD="${DB_ROOT_PASSWORD:-root}" "$container" mysqladmin ping -h 127.0.0.1 -uroot --silent >/dev/null 2>&1; then
+                    return 0
+                fi
+                ;;
+            postgres)
+                if docker exec -e PGPASSWORD="${DB_ROOT_PASSWORD:-root}" "$container" pg_isready -U "${DB_USER:-app}" -q >/dev/null 2>&1; then
+                    return 0
+                fi
+                ;;
+        esac
 
         attempt=$((attempt + 1))
         sleep 2
     done
 
-    echo -e "${RED}✗ MySQL did not become ready in time for '$INSTANCE'.${NC}"
+    echo -e "${RED}✗ Database ($engine) did not become ready in time for '$INSTANCE'.${NC}"
     exit 1
 }
 
-ensure_mysql_database_exists() {
-    if [[ ! "${MYSQL_DATABASE:-}" =~ ^[A-Za-z0-9_]+$ ]]; then
-        echo -e "${RED}✗ MYSQL_DATABASE contains unsupported characters for '$INSTANCE'.${NC}"
-        echo "  Value: ${MYSQL_DATABASE:-}"
-        echo "  Allowed characters: letters, numbers, underscore"
+ensure_db_exists() {
+    local db_name="${DB_DATABASE:-app_db}"
+    local container
+    container="$(db_container_name)"
+
+    if [[ ! "$db_name" =~ ^[A-Za-z0-9_]+$ ]]; then
+        echo -e "${RED}✗ DB_DATABASE contains unsupported characters for '$INSTANCE'.${NC}"
+        echo "  Value: $db_name"
         exit 1
     fi
 
-    local create_database_sql
-    printf -v create_database_sql 'CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;' "$MYSQL_DATABASE"
-
-    docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" \
-        mysql -uroot -e "$create_database_sql"
+    case "${DB_ENGINE:-mysql}" in
+        mysql|mariadb)
+            local sql
+            printf -v sql 'CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;' "$db_name"
+            docker exec -i -e MYSQL_PWD="${DB_ROOT_PASSWORD:-root}" "$container" mysql -uroot -e "$sql"
+            ;;
+        postgres)
+            docker exec -i -e PGPASSWORD="${DB_ROOT_PASSWORD:-root}" "$container" \
+                psql -U "${DB_USER:-app}" -tc "SELECT 1 FROM pg_database WHERE datname = '$db_name'" | grep -q 1 \
+                || docker exec -i -e PGPASSWORD="${DB_ROOT_PASSWORD:-root}" "$container" \
+                    psql -U "${DB_USER:-app}" -c "CREATE DATABASE \"$db_name\";"
+            ;;
+    esac
 }
 
-grant_mysql_user_access() {
-    if [[ ! "${MYSQL_DATABASE:-}" =~ ^[A-Za-z0-9_]+$ ]]; then
-        echo -e "${RED}✗ MYSQL_DATABASE contains unsupported characters for '$INSTANCE'.${NC}"
+grant_db_user_access() {
+    local db_name="${DB_DATABASE:-app_db}"
+    local db_user="${DB_USER:-app}"
+    local container
+    container="$(db_container_name)"
+
+    if [[ ! "$db_name" =~ ^[A-Za-z0-9_]+$ ]]; then
+        echo -e "${RED}✗ DB_DATABASE contains unsupported characters for '$INSTANCE'.${NC}"
+        exit 1
+    fi
+    if [[ ! "$db_user" =~ ^[A-Za-z0-9_]+$ ]]; then
+        echo -e "${RED}✗ DB_USER contains unsupported characters for '$INSTANCE'.${NC}"
         exit 1
     fi
 
-    if [[ ! "${MYSQL_USER:-}" =~ ^[A-Za-z0-9_]+$ ]]; then
-        echo -e "${RED}✗ MYSQL_USER contains unsupported characters for '$INSTANCE'.${NC}"
-        echo "  Value: ${MYSQL_USER:-}"
-        echo "  Allowed characters: letters, numbers, underscore"
-        exit 1
-    fi
-
-    local escaped_password grant_sql
-    escaped_password="$(escape_mysql_string_literal "${MYSQL_PASSWORD:-}")"
-    grant_sql="CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${escaped_password}'; ALTER USER '${MYSQL_USER}'@'%' IDENTIFIED BY '${escaped_password}'; GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%'; FLUSH PRIVILEGES;"
-
-    docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" \
-        mysql -uroot -e "$grant_sql"
+    case "${DB_ENGINE:-mysql}" in
+        mysql|mariadb)
+            local escaped_password grant_sql
+            escaped_password="$(escape_mysql_string_literal "${DB_PASSWORD:-}")"
+            grant_sql="CREATE USER IF NOT EXISTS '${db_user}'@'%' IDENTIFIED BY '${escaped_password}'; ALTER USER '${db_user}'@'%' IDENTIFIED BY '${escaped_password}'; GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${db_user}'@'%'; FLUSH PRIVILEGES;"
+            docker exec -i -e MYSQL_PWD="${DB_ROOT_PASSWORD:-root}" "$container" mysql -uroot -e "$grant_sql"
+            ;;
+        postgres)
+            # postgres user is created by the image via POSTGRES_USER
+            ;;
+    esac
 }
 
-recreate_mysql_database() {
-    if [[ ! "${MYSQL_DATABASE:-}" =~ ^[A-Za-z0-9_]+$ ]]; then
-        echo -e "${RED}✗ MYSQL_DATABASE contains unsupported characters for '$INSTANCE'.${NC}"
-        echo "  Value: ${MYSQL_DATABASE:-}"
-        echo "  Allowed characters: letters, numbers, underscore"
+recreate_db() {
+    local db_name="${DB_DATABASE:-app_db}"
+    local container
+    container="$(db_container_name)"
+
+    if [[ ! "$db_name" =~ ^[A-Za-z0-9_]+$ ]]; then
+        echo -e "${RED}✗ DB_DATABASE contains unsupported characters for '$INSTANCE'.${NC}"
         exit 1
     fi
 
-    local recreate_database_sql
-    printf -v recreate_database_sql 'DROP DATABASE IF EXISTS `%s`; CREATE DATABASE `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;' "$MYSQL_DATABASE" "$MYSQL_DATABASE"
-
-    docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" \
-        mysql -uroot -e "$recreate_database_sql"
+    case "${DB_ENGINE:-mysql}" in
+        mysql|mariadb)
+            local sql
+            printf -v sql 'DROP DATABASE IF EXISTS `%s`; CREATE DATABASE `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;' "$db_name" "$db_name"
+            docker exec -i -e MYSQL_PWD="${DB_ROOT_PASSWORD:-root}" "$container" mysql -uroot -e "$sql"
+            ;;
+        postgres)
+            docker exec -i -e PGPASSWORD="${DB_ROOT_PASSWORD:-root}" "$container" \
+                psql -U "${DB_USER:-app}" -c "DROP DATABASE IF EXISTS \"$db_name\"; CREATE DATABASE \"$db_name\";"
+            ;;
+    esac
 }
 
-mysql_database_has_tables() {
-    local count_tables_sql table_count
-    printf -v count_tables_sql "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '%s';" "$MYSQL_DATABASE"
+db_has_tables() {
+    local db_name="${DB_DATABASE:-app_db}"
+    local container
+    container="$(db_container_name)"
+    local table_count
 
-    table_count="$(docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" mysql -uroot -N -s -e "$count_tables_sql" 2>/dev/null | tr -d '[:space:]')"
+    case "${DB_ENGINE:-mysql}" in
+        mysql|mariadb)
+            local sql
+            printf -v sql "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '%s';" "$db_name"
+            table_count="$(docker exec -i -e MYSQL_PWD="${DB_ROOT_PASSWORD:-root}" "$container" mysql -uroot -N -s -e "$sql" 2>/dev/null | tr -d '[:space:]')"
+            ;;
+        postgres)
+            table_count="$(docker exec -i -e PGPASSWORD="${DB_ROOT_PASSWORD:-root}" "$container" \
+                psql -U "${DB_USER:-app}" -d "$db_name" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d '[:space:]')"
+            ;;
+    esac
+
     [[ -n "$table_count" && "$table_count" != "0" ]]
 }
 
-import_mysql_seed_if_configured() {
+import_db_seed_if_configured() {
     local seed_path marker_file current_signature previous_signature
-    local reseed_on_startup="${MYSQL_RESEED_ON_STARTUP:-true}"
+    local reseed_on_startup="${DB_RESEED_ON_STARTUP:-true}"
+    local engine="${DB_ENGINE:-mysql}"
+    local container
+    container="$(db_container_name)"
 
-    [[ "${MYSQL_ENABLED:-false}" == "true" ]] || return 0
-    seed_path="$(resolve_mysql_seed_file)"
+    [[ "$engine" != "none" ]] || return 0
+    seed_path="$(resolve_db_seed_file)"
     [[ -n "$seed_path" ]] || return 0
 
     if [[ ! -f "$seed_path" ]]; then
-        echo -e "${RED}✗ MYSQL_SEED_FILE does not exist in '$PROJECT_DIR/db' for '$INSTANCE'.${NC}"
+        echo -e "${RED}✗ DB_SEED_FILE does not exist in '$PROJECT_DIR/db' for '$INSTANCE'.${NC}"
         echo "  Expected file: $seed_path"
         exit 1
     fi
 
-    wait_for_mysql_ready
+    wait_for_db_ready
 
     marker_file="$(seed_marker_file)"
     mkdir -p "$(seed_state_dir)"
-    current_signature="${MYSQL_DATABASE}:${MYSQL_SEED_FILE}:$(compute_file_signature "$seed_path")"
+    current_signature="${DB_DATABASE}:${DB_SEED_FILE}:$(compute_file_signature "$seed_path")"
     previous_signature="$(cat "$marker_file" 2>/dev/null || true)"
 
     if [[ "$reseed_on_startup" != "true" ]]; then
-        ensure_mysql_database_exists
-        grant_mysql_user_access
-        if [[ "$current_signature" == "$previous_signature" ]] && mysql_database_has_tables; then
+        ensure_db_exists
+        grant_db_user_access
+        if [[ "$current_signature" == "$previous_signature" ]] && db_has_tables; then
             return 0
         fi
     fi
 
-    recreate_mysql_database
-    grant_mysql_user_access
+    recreate_db
+    grant_db_user_access
 
-    echo -e "${CYAN}🗄 Re-seeding '${BOLD}${MYSQL_DATABASE}${NC}${CYAN}' from '${BOLD}${MYSQL_SEED_FILE}${NC}${CYAN}' for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
-    case "$seed_path" in
-        *.sql)
-            docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" mysql -uroot "$MYSQL_DATABASE" < "$seed_path"
+    echo -e "${CYAN}🗄 Re-seeding '${BOLD}${DB_DATABASE}${NC}${CYAN}' from '${BOLD}${DB_SEED_FILE}${NC}${CYAN}' for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
+    case "$engine" in
+        mysql|mariadb)
+            case "$seed_path" in
+                *.sql)
+                    docker exec -i -e MYSQL_PWD="${DB_ROOT_PASSWORD:-root}" "$container" mysql -uroot "${DB_DATABASE}" < "$seed_path"
+                    ;;
+                *.sql.gz)
+                    gzip -cd "$seed_path" | docker exec -i -e MYSQL_PWD="${DB_ROOT_PASSWORD:-root}" "$container" mysql -uroot "${DB_DATABASE}"
+                    ;;
+                *)
+                    echo -e "${RED}✗ Unsupported seed file format for '$INSTANCE'.${NC}"
+                    echo "  Supported: .sql, .sql.gz"
+                    exit 1
+                    ;;
+            esac
             ;;
-        *.sql.gz)
-            gzip -cd "$seed_path" | docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "${INSTANCE}_mysql" mysql -uroot "$MYSQL_DATABASE"
-            ;;
-        *)
-            echo -e "${RED}✗ Unsupported MYSQL_SEED_FILE format for '$INSTANCE'.${NC}"
-            echo "  Supported files: .sql, .sql.gz"
-            exit 1
+        postgres)
+            case "$seed_path" in
+                *.sql)
+                    docker exec -i -e PGPASSWORD="${DB_ROOT_PASSWORD:-root}" "$container" \
+                        psql -U "${DB_USER:-app}" -d "${DB_DATABASE}" < "$seed_path"
+                    ;;
+                *.sql.gz)
+                    gzip -cd "$seed_path" | docker exec -i -e PGPASSWORD="${DB_ROOT_PASSWORD:-root}" "$container" \
+                        psql -U "${DB_USER:-app}" -d "${DB_DATABASE}"
+                    ;;
+                *)
+                    echo -e "${RED}✗ Unsupported seed file format for '$INSTANCE'.${NC}"
+                    echo "  Supported: .sql, .sql.gz"
+                    exit 1
+                    ;;
+            esac
             ;;
     esac
 
@@ -996,6 +1108,53 @@ generate_vhosts_config() {
         docroot="${docroot#/}"
         [[ -n "$docroot" ]] && docroot="/${docroot}"
 
+        local runtime="${APP_RUNTIME:-php}"
+        local upstream_block=""
+
+        case "$runtime" in
+            php)
+                upstream_block="
+    location ~ \.php\$ {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_pass php:9000;
+        fastcgi_index index.php;
+    }"
+                ;;
+            node)
+                upstream_block="
+    location @backend {
+        proxy_pass http://node:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+    }"
+                ;;
+            python)
+                upstream_block="
+    location @backend {
+        proxy_pass http://python:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }"
+                ;;
+        esac
+
+        local try_files_directive
+        case "$runtime" in
+            php)    try_files_directive="try_files \$uri \$uri/ /index.php?\$query_string;" ;;
+            node|python) try_files_directive="try_files \$uri \$uri/ @backend;" ;;
+            static) try_files_directive="try_files \$uri \$uri/ =404;" ;;
+        esac
+
         nginx_conf+="server {
     listen ${internal_port};
     server_name _;
@@ -1004,15 +1163,9 @@ generate_vhosts_config() {
     index index.php index.html index.htm;
 
     location / {
-        try_files \$uri \$uri/ /index.php?\$query_string;
+        ${try_files_directive}
     }
-
-    location ~ \.php\$ {
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        fastcgi_pass php:9000;
-        fastcgi_index index.php;
-    }
+${upstream_block}
 
     location ~ /\.(?!well-known).* {
         deny all;
@@ -1041,7 +1194,7 @@ ensure_instance_files() {
     local instance_dir="$INSTANCES_DIR/$INSTANCE"
 
     mkdir -p "$instance_dir/www"
-    mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql"
+    mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql" "$instance_dir/config/mariadb"
     mkdir -p "$instance_dir/config/ssh"
     mkdir -p "$instance_dir/seed-state"
 
@@ -1052,6 +1205,7 @@ ensure_instance_files() {
 
     copy_if_missing "$PROJECT_DIR/config/php/php.ini" "$instance_dir/config/php/php.ini"
     copy_if_missing "$PROJECT_DIR/config/mysql/my.cnf" "$instance_dir/config/mysql/my.cnf"
+    copy_if_missing "$PROJECT_DIR/config/mariadb/my.cnf" "$instance_dir/config/mariadb/my.cnf"
 
     # Ensure workspace has proper permissions
     chmod -R 777 "$instance_dir/www" 2>/dev/null || true
@@ -1100,15 +1254,42 @@ load_instance_env() {
     rm -f "$normalized_env_file"
     export PROJECT_NAME="$INSTANCE"
 
+    resolve_legacy_vars
     ensure_instance_files
 }
 
 # ── Build active profiles ──
 get_profiles() {
     local profiles=""
-    [[ "${PHP_ENABLED:-false}" == "true" ]]        && profiles="$profiles --profile php"
-    [[ "${MYSQL_ENABLED:-false}" == "true" ]]       && profiles="$profiles --profile mysql"
-    [[ "${PHPMYADMIN_ENABLED:-false}" == "true" ]]  && profiles="$profiles --profile phpmyadmin"
+    local runtime="${APP_RUNTIME:-php}"
+    local engine="${DB_ENGINE:-mysql}"
+
+    # App runtime
+    case "$runtime" in
+        php)    profiles="$profiles --profile php" ;;
+        node)   profiles="$profiles --profile node" ;;
+        python) profiles="$profiles --profile python" ;;
+        static) profiles="$profiles --profile static" ;;
+    esac
+
+    # Database engine
+    case "$engine" in
+        mysql)   profiles="$profiles --profile mysql" ;;
+        mariadb) profiles="$profiles --profile mariadb" ;;
+        postgres) profiles="$profiles --profile postgres" ;;
+    esac
+
+    # Database admin
+    if [[ "${DB_ADMIN_ENABLED:-false}" == "true" ]]; then
+        case "$engine" in
+            mysql|mariadb) profiles="$profiles --profile phpmyadmin" ;;
+            postgres)      profiles="$profiles --profile pgadmin" ;;
+        esac
+    fi
+
+    # Redis
+    [[ "${REDIS_ENABLED:-false}" == "true" ]] && profiles="$profiles --profile redis"
+
     echo "$profiles"
 }
 
@@ -1156,7 +1337,7 @@ cmd_init() {
     fi
 
     mkdir -p "$instance_dir/www"
-    mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql"
+    mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql" "$instance_dir/config/mariadb"
     mkdir -p "$instance_dir/config/ssh"
     mkdir -p "$instance_dir/seed-state"
 
@@ -1171,9 +1352,10 @@ cmd_init() {
 
     sed -i.bak \
         -e "s/^VHOSTS=.*/VHOSTS=$(( 8000 + offset )):/" \
-        -e "s/^MYSQL_PORT=.*/MYSQL_PORT=$(( 3306 + offset ))/" \
-        -e "s/^PHPMYADMIN_PORT=.*/PHPMYADMIN_PORT=$(( 8080 + offset ))/" \
+        -e "s/^DB_PORT=.*/DB_PORT=$(( 3306 + offset ))/" \
+        -e "s/^DB_ADMIN_PORT=.*/DB_ADMIN_PORT=$(( 8080 + offset ))/" \
         -e "s/^WORKSPACE_SSH_PORT=.*/WORKSPACE_SSH_PORT=$(( 2222 + offset ))/" \
+        -e "s/^REDIS_PORT=.*/REDIS_PORT=$(( 6379 + offset ))/" \
         "$instance_dir/.env"
     rm -f "$instance_dir/.env.bak"
 
@@ -1333,11 +1515,13 @@ cmd_up() {
     bootstrap_instance_git_repo
     echo -e "${CYAN}🐳 Starting instance '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
     compose_cmd up -d --build "$@"
-    import_mysql_seed_if_configured
+    import_db_seed_if_configured
     echo ""
     echo -e "${GREEN}✅ Instance '$INSTANCE' is running!${NC}"
     echo -e "   Shell:      ./scripts/ocompose.sh $INSTANCE shell"
-    if [[ "${PHP_ENABLED:-false}" == "true" ]]; then
+
+    local runtime="${APP_RUNTIME:-php}"
+    if [[ "$runtime" != "none" ]]; then
         resolve_vhosts
         while IFS= read -r vhost_entry; do
             [[ -z "$vhost_entry" ]] && continue
@@ -1347,8 +1531,18 @@ cmd_up() {
             echo -e "   App:        http://localhost:${vhost_port}  →  ${vhost_docroot}"
         done <<< "$RESOLVED_VHOSTS"
     fi
-    [[ "${MYSQL_ENABLED:-false}" == "true" ]]      && echo -e "   MySQL:      localhost:${MYSQL_PORT:-3306}"
-    [[ "${PHPMYADMIN_ENABLED:-false}" == "true" ]]  && echo -e "   phpMyAdmin: http://localhost:${PHPMYADMIN_PORT:-8080}"
+
+    local engine="${DB_ENGINE:-mysql}"
+    [[ "$engine" != "none" ]] && echo -e "   Database:   ${engine} @ localhost:${DB_PORT:-3306}"
+
+    if [[ "${DB_ADMIN_ENABLED:-false}" == "true" ]]; then
+        case "$engine" in
+            mysql|mariadb) echo -e "   phpMyAdmin: http://localhost:${DB_ADMIN_PORT:-8080}" ;;
+            postgres)      echo -e "   pgAdmin:    http://localhost:${DB_ADMIN_PORT:-5050}" ;;
+        esac
+    fi
+
+    [[ "${REDIS_ENABLED:-false}" == "true" ]] && echo -e "   Redis:      localhost:${REDIS_PORT:-6379}"
 }
 
 cmd_down() {
@@ -1449,7 +1643,7 @@ cmd_list() {
         return
     fi
 
-    printf "   ${BOLD}%-20s %-12s %-18s %-10s %-10s %-10s${NC}\n" "INSTANCE" "STATUS" "APP" "MYSQL" "PMA" "SSH"
+    printf "   ${BOLD}%-20s %-12s %-10s %-10s %-18s %-10s %-10s %-10s${NC}\n" "INSTANCE" "STATUS" "RUNTIME" "DB" "APP" "DB PORT" "ADMIN" "SSH"
     for dir in "$INSTANCES_DIR"/*/; do
         local name
         name=$(basename "$dir")
@@ -1462,12 +1656,29 @@ cmd_list() {
             status="${RED}stopped${NC}"
         fi
 
-        local app_ports="-" mysql_port="-" pma_port="-" ssh_port="-"
+        local runtime="-" db_engine="-" app_ports="-" db_port="-" admin_port="-" ssh_port="-"
         if [[ -f "$env_file" ]]; then
+            # Runtime
+            runtime=$(grep "^APP_RUNTIME=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
+            if [[ -z "$runtime" ]]; then
+                # Legacy fallback
+                local php_enabled
+                php_enabled=$(grep "^PHP_ENABLED=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
+                [[ "$php_enabled" == "true" ]] && runtime="php" || runtime="-"
+            fi
+
+            # DB engine
+            db_engine=$(grep "^DB_ENGINE=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
+            if [[ -z "$db_engine" ]]; then
+                local mysql_enabled
+                mysql_enabled=$(grep "^MYSQL_ENABLED=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
+                [[ "$mysql_enabled" == "true" ]] && db_engine="mysql" || db_engine="-"
+            fi
+
+            # Vhosts
             local vhosts_raw
             vhosts_raw=$(grep "^VHOSTS=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
             if [[ -n "$vhosts_raw" ]]; then
-                # Extract just the ports from VHOSTS entries
                 local port_list=""
                 IFS=',' read -ra vh_entries <<< "$vhosts_raw"
                 for vh in "${vh_entries[@]}"; do
@@ -1478,16 +1689,18 @@ cmd_list() {
                 done
                 app_ports="${port_list:-"-"}"
             else
-                # Legacy fallback
                 app_ports=$(grep "^APP_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
-                [[ "$app_ports" == "-" || -z "$app_ports" ]] && app_ports="8000"
+                [[ -z "$app_ports" ]] && app_ports="-"
             fi
-            mysql_port=$(grep "^MYSQL_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
-            pma_port=$(grep "^PHPMYADMIN_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
+
+            db_port=$(grep "^DB_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
+            [[ -z "$db_port" ]] && db_port=$(grep "^MYSQL_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
+            admin_port=$(grep "^DB_ADMIN_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
+            [[ -z "$admin_port" ]] && admin_port=$(grep "^PHPMYADMIN_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
             ssh_port=$(grep "^WORKSPACE_SSH_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
         fi
 
-        printf "   %-20s %-22b %-18s %-10s %-10s %-10s\n" "$name" "$status" "$app_ports" "$mysql_port" "$pma_port" "$ssh_port"
+        printf "   %-20s %-22b %-10s %-10s %-18s %-10s %-10s %-10s\n" "$name" "$status" "$runtime" "$db_engine" "$app_ports" "$db_port" "$admin_port" "$ssh_port"
     done
 }
 

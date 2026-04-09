@@ -50,23 +50,32 @@ const fieldNames = [
     'GIT_BRANCH',
     'GIT_HTTP_USERNAME',
     'GIT_HTTP_PASSWORD',
-    'PHP_ENABLED',
+    'APP_RUNTIME',
+    'APP_BASE_URL',
     'PHP_VERSION',
     'PHP_EXTENSIONS',
+    'NODE_VERSION',
+    'NODE_COMMAND',
+    'PYTHON_VERSION',
+    'PYTHON_COMMAND',
     'VHOSTS',
-    'MYSQL_ENABLED',
-    'MYSQL_VERSION',
-    'MYSQL_ROOT_PASSWORD',
-    'MYSQL_DATABASE',
-    'MYSQL_USER',
-    'MYSQL_PASSWORD',
-    'MYSQL_PORT',
-    'MYSQL_SEED_FILE',
-    'MYSQL_RESEED_ON_STARTUP',
-    'PHPMYADMIN_ENABLED',
-    'PHPMYADMIN_PORT',
+    'DB_ENGINE',
+    'DB_VERSION',
+    'DB_ROOT_PASSWORD',
+    'DB_DATABASE',
+    'DB_USER',
+    'DB_PASSWORD',
+    'DB_PORT',
+    'DB_SEED_FILE',
+    'DB_RESEED_ON_STARTUP',
+    'DB_ADMIN_ENABLED',
+    'DB_ADMIN_PORT',
+    'PGADMIN_EMAIL',
+    'PGADMIN_PASSWORD',
+    'REDIS_ENABLED',
+    'REDIS_VERSION',
+    'REDIS_PORT',
     'WORKSPACE_SSH_PORT',
-    'APP_BASE_URL',
     'CI3_ENABLED',
     'CI3_EXTRA_CONSTANTS',
     'CI3_APP_ROOT',
@@ -75,7 +84,7 @@ const fieldNames = [
 ];
 
 function renderDbFileOptions(selectedValue = '') {
-    const element = form.elements.namedItem('MYSQL_SEED_FILE');
+    const element = form.elements.namedItem('DB_SEED_FILE');
     if (!element) {
         return;
     }
@@ -97,7 +106,7 @@ async function loadDbFiles() {
     const payload = await apiRequest('/api/db-files');
     state.dbFiles = Array.isArray(payload.files) ? payload.files : [];
 
-    const currentValue = form.elements.namedItem('MYSQL_SEED_FILE')?.value || '';
+    const currentValue = form.elements.namedItem('DB_SEED_FILE')?.value || '';
     renderDbFileOptions(currentValue);
 }
 
@@ -542,7 +551,7 @@ function fillForm(instance) {
             return;
         }
 
-        if (fieldName === 'MYSQL_SEED_FILE') {
+        if (fieldName === 'DB_SEED_FILE') {
             renderDbFileOptions(instance.config[fieldName] || '');
             return;
         }

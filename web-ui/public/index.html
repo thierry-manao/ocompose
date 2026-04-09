@@ -147,32 +147,49 @@
                                             <div class="section-icon"><i class="bi bi-toggles2"></i></div>
                                             <div>
                                                 <p class="eyebrow eyebrow-dark mb-2">Services</p>
-                                                <h2 class="section-title mb-1">Activer/désactiver le stack</h2>
-                                                <p class="section-copy mb-0">Décidez ce qui démarre réellement pour cette instance.</p>
+                                                <h2 class="section-title mb-1">Runtime & moteur de base de données</h2>
+                                                <p class="section-copy mb-0">Choisissez le langage applicatif et le moteur de base de données pour cette instance.</p>
                                             </div>
                                         </div>
+
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Runtime applicatif</label>
+                                                <select class="form-select" name="APP_RUNTIME">
+                                                    <option value="php">PHP (Nginx + PHP-FPM)</option>
+                                                    <option value="node">Node.js (Nginx + Node)</option>
+                                                    <option value="python">Python (Nginx + Python)</option>
+                                                    <option value="static">Statique (Nginx seul)</option>
+                                                    <option value="none">Aucun</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Moteur de base de données</label>
+                                                <select class="form-select" name="DB_ENGINE">
+                                                    <option value="mysql">MySQL</option>
+                                                    <option value="mariadb">MariaDB</option>
+                                                    <option value="postgres">PostgreSQL</option>
+                                                    <option value="none">Aucun</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <hr class="my-4">
 
                                         <div class="toggle-stack">
                                             <label class="toggle-card form-check form-switch">
                                                 <div>
-                                                    <span class="toggle-title">Couche applicative PHP</span>
-                                                    <small class="text-secondary d-block">Activer la partie Nginx et PHP-FPM du stack.</small>
+                                                    <span class="toggle-title">Admin de base de données</span>
+                                                    <small class="text-secondary d-block">phpMyAdmin (MySQL/MariaDB) ou pgAdmin (PostgreSQL) — sélectionné automatiquement.</small>
                                                 </div>
-                                                <input class="form-check-input" type="checkbox" role="switch" name="PHP_ENABLED">
+                                                <input class="form-check-input" type="checkbox" role="switch" name="DB_ADMIN_ENABLED">
                                             </label>
                                             <label class="toggle-card form-check form-switch">
                                                 <div>
-                                                    <span class="toggle-title">Base de données MySQL</span>
-                                                    <small class="text-secondary d-block">Démarrer le conteneur de base de données et publier le port.</small>
+                                                    <span class="toggle-title">Redis</span>
+                                                    <small class="text-secondary d-block">Cache et file de messages en mémoire.</small>
                                                 </div>
-                                                <input class="form-check-input" type="checkbox" role="switch" name="MYSQL_ENABLED">
-                                            </label>
-                                            <label class="toggle-card form-check form-switch">
-                                                <div>
-                                                    <span class="toggle-title">phpMyAdmin</span>
-                                                    <small class="text-secondary d-block">Exposer l'interface d'administration navigateur pour MySQL.</small>
-                                                </div>
-                                                <input class="form-check-input" type="checkbox" role="switch" name="PHPMYADMIN_ENABLED">
+                                                <input class="form-check-input" type="checkbox" role="switch" name="REDIS_ENABLED">
                                             </label>
                                         </div>
                                     </section>
@@ -196,28 +213,62 @@
                                                 <div class="form-text mt-1">Une ou plusieurs entrées séparées par des virgules. Ex: <code>8000:public</code>, <code>8000:public,8001:api</code></div>
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Port SSH de l'espace de travail</label>
+                                                <label class="form-label label-caps">Port SSH</label>
                                                 <input class="form-control form-control-lg" type="number" name="WORKSPACE_SSH_PORT">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Port MySQL</label>
-                                                <input class="form-control form-control-lg" type="number" name="MYSQL_PORT">
+                                                <label class="form-label label-caps">Port base de données</label>
+                                                <input class="form-control form-control-lg" type="number" name="DB_PORT">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Port phpMyAdmin</label>
-                                                <input class="form-control form-control-lg" type="number" name="PHPMYADMIN_PORT">
+                                                <label class="form-label label-caps">Port admin DB</label>
+                                                <input class="form-control form-control-lg" type="number" name="DB_ADMIN_PORT">
                                             </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Port Redis</label>
+                                                <input class="form-control form-control-lg" type="number" name="REDIS_PORT">
+                                            </div>
+
+                                            <div class="col-12"><hr class="my-1"></div>
+
+                                            <!-- PHP -->
                                             <div class="col-md-6">
                                                 <label class="form-label label-caps">Version PHP</label>
-                                                <input class="form-control form-control-lg" type="text" name="PHP_VERSION" placeholder="8.3">
+                                                <input class="form-control" type="text" name="PHP_VERSION" placeholder="8.3">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Version MySQL</label>
-                                                <input class="form-control form-control-lg" type="text" name="MYSQL_VERSION" placeholder="8.0">
-                                            </div>
-                                            <div class="col-12">
                                                 <label class="form-label label-caps">Extensions PHP</label>
-                                                <input class="form-control form-control-lg" type="text" name="PHP_EXTENSIONS" placeholder="mysql mbstring zip gd curl intl xml">
+                                                <input class="form-control" type="text" name="PHP_EXTENSIONS" placeholder="mysql mbstring zip gd curl intl xml">
+                                            </div>
+
+                                            <!-- Node.js -->
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Version Node.js</label>
+                                                <input class="form-control" type="text" name="NODE_VERSION" placeholder="20">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Commande Node</label>
+                                                <input class="form-control" type="text" name="NODE_COMMAND" placeholder="node server.js">
+                                            </div>
+
+                                            <!-- Python -->
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Version Python</label>
+                                                <input class="form-control" type="text" name="PYTHON_VERSION" placeholder="3.12">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Commande Python</label>
+                                                <input class="form-control" type="text" name="PYTHON_COMMAND" placeholder="python -m http.server 8000">
+                                            </div>
+
+                                            <!-- DB & Redis versions -->
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Version base de données</label>
+                                                <input class="form-control" type="text" name="DB_VERSION" placeholder="8.0 / 10.11 / 16">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Version Redis</label>
+                                                <input class="form-control" type="text" name="REDIS_VERSION" placeholder="7">
                                             </div>
                                         </div>
                                     </section>
@@ -302,30 +353,30 @@
                                             <div>
                                                 <p class="eyebrow eyebrow-dark mb-2">Base de données</p>
                                                 <h2 class="section-title mb-1">Identifiants & Alimentation</h2>
-                                                <p class="section-copy mb-0">Créez la base de données cible, choisissez un dump d'alimentation et contrôlez les identifiants de la base de données en un seul endroit.</p>
+                                                <p class="section-copy mb-0">Configurez les accès et le dump de référence. Fonctionne avec MySQL, MariaDB et PostgreSQL.</p>
                                             </div>
                                         </div>
 
                                         <div class="row g-3">
                                             <div class="col-md-6">
                                                 <label class="form-label label-caps">Nom de la base de données</label>
-                                                <input class="form-control" type="text" name="MYSQL_DATABASE">
+                                                <input class="form-control" type="text" name="DB_DATABASE">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Utilisateur de la base de données</label>
-                                                <input class="form-control" type="text" name="MYSQL_USER">
+                                                <label class="form-label label-caps">Utilisateur</label>
+                                                <input class="form-control" type="text" name="DB_USER">
                                             </div>
                                             <div class="col-md-6">
-                                                <label class="form-label label-caps">Mot de passe de la base de données</label>
-                                                <input class="form-control" type="text" name="MYSQL_PASSWORD">
+                                                <label class="form-label label-caps">Mot de passe</label>
+                                                <input class="form-control" type="text" name="DB_PASSWORD">
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label label-caps">Mot de passe root</label>
-                                                <input class="form-control" type="text" name="MYSQL_ROOT_PASSWORD">
+                                                <input class="form-control" type="text" name="DB_ROOT_PASSWORD">
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label label-caps">Dump de référence</label>
-                                                <select class="form-select" name="MYSQL_SEED_FILE">
+                                                <select class="form-select" name="DB_SEED_FILE">
                                                     <option value="">Pas d'import de dump</option>
                                                 </select>
                                             </div>
@@ -335,8 +386,21 @@
                                                         <span class="toggle-title">Toujours réalimenter au démarrage</span>
                                                         <small class="text-secondary d-block">Lorsqu'activé, le démarrage supprime et recrée la base de données sélectionnée avant d'importer le dump.</small>
                                                     </div>
-                                                    <input class="form-check-input" type="checkbox" role="switch" name="MYSQL_RESEED_ON_STARTUP">
+                                                    <input class="form-check-input" type="checkbox" role="switch" name="DB_RESEED_ON_STARTUP">
                                                 </label>
+                                            </div>
+                                        </div>
+
+                                        <hr class="my-4">
+                                        <p class="eyebrow eyebrow-dark mb-3">pgAdmin (PostgreSQL uniquement)</p>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Email pgAdmin</label>
+                                                <input class="form-control" type="email" name="PGADMIN_EMAIL" placeholder="admin@local.dev">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Mot de passe pgAdmin</label>
+                                                <input class="form-control" type="text" name="PGADMIN_PASSWORD" placeholder="secret">
                                             </div>
                                         </div>
                                     </section>
