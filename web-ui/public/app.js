@@ -211,8 +211,8 @@ function updateAllActionButtons() {
         }
     });
 
-    // Update dashboard card buttons
-    dashboardInstanceGrid.querySelectorAll('[data-dashboard-action]').forEach((button) => {
+    // Update dashboard and instance list card buttons
+    document.querySelectorAll('[data-dashboard-action]').forEach((button) => {
         const instanceName = button.dataset.dashboardInstance;
         const action = button.dataset.dashboardAction;
         const pending = state.pendingActions[instanceName];
@@ -569,28 +569,44 @@ function renderInstances() {
     }
 
     state.instances.forEach((instance) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `instance-card${instance.name === state.selectedInstanceName ? ' active' : ''}`;
-        button.innerHTML = `
-            <div class="instance-card__head">
-                <strong class="instance-card__name">${instance.name}</strong>
+        const appUrls = parseVhostUrls(instance);
+        const pmaUrl = buildHttpAccessUrl(instance?.config?.PHPMYADMIN_PORT) || instance?.urls?.phpmyadmin || null;
+
+        const card = document.createElement('article');
+        card.className = `dashboard-instance-card${instance.name === state.selectedInstanceName ? ' active' : ''}`;
+
+        const appLinks = appUrls.map((entry) =>
+            `<a class="btn btn-link p-0 dashboard-link-button" href="${entry.url}" target="_blank" rel="noreferrer">Ouvrir ${entry.label}</a>`
+        ).join('');
+
+        card.innerHTML = `
+            <div class="dashboard-instance-card__head">
+                <div>
+                    <h3 class="dashboard-instance-card__title">${instance.name}</h3>
+                    <p class="dashboard-instance-card__subtitle">${instance.status === 'running' ? 'Environnement actif' : 'Actuellement arrêté'}</p>
+                </div>
                 <span class="instance-card__status ${instance.status}">${instance.status}</span>
             </div>
-            <div class="instance-card__meta">
-                <span><i class="bi bi-globe2"></i> ${instance.config.VHOSTS || '-'}</span>
-                <span><i class="bi bi-database"></i> ${instance.config.MYSQL_PORT || '-'}</span>
+            <div class="dashboard-instance-card__meta">
+                <span><i class="bi bi-globe2"></i> App ${instance.config.VHOSTS || '-'}</span>
+                <span><i class="bi bi-database"></i> MySQL ${instance.config.MYSQL_PORT || '-'}</span>
+            </div>
+            <div class="dashboard-instance-card__actions">
+                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-select="${instance.name}">Sélectionner</button>
+                <button class="btn btn-sm btn-success" type="button" data-dashboard-action="up" data-dashboard-instance="${instance.name}">Démarrer</button>
+                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-action="down" data-dashboard-instance="${instance.name}">Arrêter</button>
+                <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-action="restart" data-dashboard-instance="${instance.name}">Redémarrer</button>
+                <button class="btn btn-sm btn-outline-danger" type="button" data-dashboard-action="destroy" data-dashboard-instance="${instance.name}">Détruire</button>
+            </div>
+            <div class="dashboard-instance-card__footer">
+                ${appLinks}
+                ${pmaUrl ? `<a class="btn btn-link p-0 dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">Ouvrir phpMyAdmin</a>` : ''}
+                <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Ouvrir les paramètres</button>
+                <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="shell" data-dashboard-instance="${instance.name}">Ouvrir la console</button>
             </div>
         `;
 
-        button.addEventListener('click', () => {
-            state.selectedInstanceName = instance.name;
-            renderInstances();
-            fillForm(instance);
-            setMessage(`${instance.name} chargé.`);
-        });
-
-        instanceList.appendChild(button);
+        instanceList.appendChild(card);
     });
 
     const selected = getSelectedInstance() || state.instances[0];
@@ -790,7 +806,7 @@ refreshButton.addEventListener('click', async () => {
     }
 });
 
-dashboardInstanceGrid.addEventListener('click', async (event) => {
+async function handleDashboardCardClick(event) {
     const target = event.target.closest('button');
     if (!target) {
         return;
@@ -827,7 +843,10 @@ dashboardInstanceGrid.addEventListener('click', async (event) => {
     if (target.dataset.dashboardAction) {
         await runInstanceAction(selectedInstanceName, target.dataset.dashboardAction);
     }
-});
+}
+
+dashboardInstanceGrid.addEventListener('click', handleDashboardCardClick);
+instanceList.addEventListener('click', handleDashboardCardClick);
 
 sectionNavButtons.forEach((button) => {
     button.addEventListener('click', () => {
