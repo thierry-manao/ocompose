@@ -4,6 +4,9 @@ ARG PHP_VERSION=8.3
 ARG PHP_EXTENSIONS="mysql mbstring zip gd curl intl xml"
 ARG DEBIAN_FRONTEND=noninteractive
 
+# Persist ARG as ENV so CMD can use it at runtime
+ENV PHP_VERSION=${PHP_VERSION}
+
 # ── System dependencies + Sury PHP repository (supports PHP 5.6 – 8.x) ──
 RUN apt-get update && apt-get install -y \
     ca-certificates \
