@@ -42,6 +42,9 @@ copy_if_missing() {
     local target_file="$2"
 
     if [[ ! -f "$target_file" && -f "$source_file" ]]; then
+        # Docker creates directories for bind-mount targets that don't exist as
+        # files.  Remove the placeholder directory so the real file can be copied.
+        [[ -d "$target_file" ]] && rm -rf "$target_file"
         mkdir -p "$(dirname "$target_file")"
         cp "$source_file" "$target_file"
     fi
