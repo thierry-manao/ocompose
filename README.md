@@ -41,7 +41,7 @@ ocompose myapp up
 | -------------------- | ----------------- | ------------------------------------------------------- |
 | **Workspace**  | ✅ Mandatory      | Ubuntu mini-OS with**Git**, curl, vim, wget, etc. |
 | **Nginx**      | ⚙️ Configurable | Web server exposing your app on a host port             |
-| **PHP**        | ⚙️ Configurable | PHP-FPM + Composer (version configurable)               |
+| **PHP**        | ⚙️ Configurable | PHP-FPM + Composer (PHP 5.6 – 8.4+ via sury.org)       |
 | **MySQL**      | ⚙️ Configurable | MySQL server (version configurable)                     |
 | **phpMyAdmin** | ⚙️ Configurable | Web UI for MySQL                                        |
 
@@ -69,9 +69,9 @@ Output:
 ```
 📦 ocompose instances:
 
-  INSTANCE             STATUS       APP        MYSQL      PMA        SSH
-  client-a             running      8000       3306       8080       2222
-  blog                 running      8010       3316       8090       2232
+  INSTANCE             STATUS       APP                MYSQL      PMA        SSH
+  client-a             running      8000               3306       8080       2222
+  blog                 running      8010               3316       8090       2232
 ```
 
 ---
@@ -211,8 +211,7 @@ MYSQL_RESEED_ON_STARTUP=true
 App access:
 
 ```env
-APP_PORT=8000
-NGINX_DOCUMENT_ROOT=public
+VHOSTS=8000:public
 ```
 
 Then open:
@@ -221,33 +220,61 @@ Then open:
 http://localhost:8000
 ```
 
-`NGINX_DOCUMENT_ROOT` specifies the subdirectory inside your workspace that nginx should serve. For example:
+### Virtual Hosts
 
-- Leave empty (or set to `/`) to serve from the workspace root
-- Set to `public` to serve from `/var/www/html/public`
-- Set to `web` for Laravel-style projects that use `web/index.php`
+`VHOSTS` defines one or more virtual hosts as a comma-separated list of `port:documentRoot` entries. Each entry creates its own nginx server block and port mapping.
 
-This is useful when your cloned Git repository has its own entry point structure.
+**Single app** (default):
+
+```env
+VHOSTS=8000:public
+```
+
+**App + API** (same repo, different entry points):
+
+```env
+VHOSTS=8000:public,8001:api
+```
+
+→ `http://localhost:8000` serves from `www/public/`, `http://localhost:8001` serves from `www/api/`
+
+**Multiple services:**
+
+```env
+VHOSTS=8000:public,8001:api,8002:admin,8003:docs
+```
+
+**Serve from workspace root** (no subdirectory):
+
+```env
+VHOSTS=8000:
+```
+
+Nginx config and port mappings are regenerated automatically on every `up` / `restart`.
+
+Legacy `APP_PORT` and `NGINX_DOCUMENT_ROOT` are still supported for backward compatibility — if `VHOSTS` is empty, ocompose falls back to those values.
 
 **CodeIgniter auto-configuration:**
 
 When you restart an instance with a CodeIgniter 4 project, ocompose will automatically configure the `.env` file inside your workspace to:
 
 - Set `CI_ENVIRONMENT = development`
-- Set `app.baseURL` to `http://<server-ip>:<APP_PORT>/` (auto-detected from server)
+- Set `app.baseURL` to `http://<server-ip>:<first-vhost-port>/` (auto-detected from server)
 - Disable `app.forceGlobalSecureRequests` to prevent HTTPS redirects
 - Configure database connection using your MySQL settings
 
-The base URL is automatically detected using the server's primary IP address and your configured `APP_PORT`. This means CodeIgniter projects work out of the box without manual `.env` editing.
+The base URL is automatically detected using the server's primary IP address and the first port from your `VHOSTS` config. This means CodeIgniter projects work out of the box without manual `.env` editing.
 
 If you need to override the auto-detected URL (e.g., for a custom domain), you can manually add `APP_BASE_URL` to your instance's `.env` file.
 
 Change versions:
 
 ```env
-PHP_VERSION=8.1
+PHP_VERSION=7.4
 MYSQL_VERSION=5.7
 ```
+
+PHP versions are installed from the [deb.sury.org](https://packages.sury.org/php/) repository, which supports PHP 5.6 through 8.4+. Extensions are installed as distro packages (e.g. `mysql`, `mbstring`, `gd`).
 
 Custom user inside the workspace:
 
@@ -311,6 +338,7 @@ ocompose/
 ├── instances/                  # Per-instance data & config
 │   ├── client-a/
 │   │   ├── .env
+│   │   ├── docker-compose.vhosts.yml  # Auto-generated port mappings
 │   │   ├── config/
 │   │   │   ├── nginx/default.conf
 │   │   │   ├── php/php.ini
@@ -331,8 +359,10 @@ ocompose/
 │   ├── gescom.sql
 │   └── paie.sql
 ├── services/
-│   ├── workspace/Dockerfile    # Base OS + Git (mandatory)
-│   └── php/Dockerfile          # PHP-FPM + Composer
+│   ├── workspace/
+│   │   ├── Dockerfile          # Base OS + Git + SSH (mandatory)
+│   │   └── entrypoint.sh       # Starts sshd then exec CMD
+│   └── php/Dockerfile          # PHP-FPM via sury.org (5.6 – 8.4+)
 ├── config/
 │   ├── nginx/default.conf      # Default Nginx template copied into instances
 │   ├── php/php.ini             # Default PHP template copied into instances

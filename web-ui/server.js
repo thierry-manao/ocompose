@@ -329,12 +329,23 @@ function getRequestHostname(request) {
 function buildInstanceSummary(instanceName, config, runningContainers, accessHost = 'localhost') {
     const running = runningContainers.has(`${instanceName}_workspace`);
 
+    const vhostUrls = [];
+    if (toBoolean(config.PHP_ENABLED) && config.VHOSTS) {
+        const entries = config.VHOSTS.split(',').map(e => e.trim()).filter(Boolean);
+        for (const entry of entries) {
+            const port = entry.split(':')[0];
+            if (port) {
+                vhostUrls.push(`http://${accessHost}:${port}`);
+            }
+        }
+    }
+
     return {
         name: instanceName,
         status: running ? 'running' : 'stopped',
         config,
         urls: {
-            app: toBoolean(config.PHP_ENABLED) ? `http://${accessHost}:${config.APP_PORT}` : null,
+            app: vhostUrls.length > 0 ? vhostUrls : null,
             phpmyadmin: toBoolean(config.PHPMYADMIN_ENABLED) ? `http://${accessHost}:${config.PHPMYADMIN_PORT}` : null,
             ssh: config.WORKSPACE_SSH_PORT ? `${accessHost}:${config.WORKSPACE_SSH_PORT}` : null,
         },
@@ -540,8 +551,7 @@ function sanitizeConfig(inputConfig) {
         'PHP_ENABLED',
         'PHP_VERSION',
         'PHP_EXTENSIONS',
-        'APP_PORT',
-        'NGINX_DOCUMENT_ROOT',
+        'VHOSTS',
         'MYSQL_ENABLED',
         'MYSQL_VERSION',
         'MYSQL_ROOT_PASSWORD',

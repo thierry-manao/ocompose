@@ -1,41 +1,23 @@
 FROM debian:bookworm-slim
 
 ARG PHP_VERSION=8.3
-ARG PHP_EXTENSIONS="pdo pdo_mysql mysqli mbstring zip gd curl intl"
+ARG PHP_EXTENSIONS="mysql mbstring zip gd curl intl xml"
 ARG DEBIAN_FRONTEND=noninteractive
 
-# ── System dependencies ──
+# ── System dependencies + Sury PHP repository (supports PHP 5.6 – 8.x) ──
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
     gnupg \
     lsb-release \
-    && rm -rf /var/lib/apt/lists/*
-
-# ── Sury PHP repository (supports PHP 5.6 – 8.x) ──
-RUN curl -fsSL https://packages.sury.org/php/apt.gpg \
-      | gpg --dearmor -o /usr/share/keyrings/sury-php.gpg \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL https://packages.sury.org/php/apt.gpg \
+         | gpg --dearmor -o /usr/share/keyrings/sury-php.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/sury-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" \
-      > /etc/apt/sources.list.d/sury-php.list
-
-# ── Build libraries (needed by many extensions) ──
-RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    libzip-dev \
-    libicu-dev \
-    libonig-dev \
-    libcurl4-openssl-dev \
-    libxml2-dev \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# ── Install PHP + FPM ──
-RUN apt-get update \
-    && apt-get install -y \
-       php${PHP_VERSION}-fpm \
-       php${PHP_VERSION}-cli \
+         > /etc/apt/sources.list.d/sury-php.list \
+    && apt-get update && apt-get install -y \
+         php${PHP_VERSION}-fpm \
+         php${PHP_VERSION}-cli \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Install extensions as distro packages ──

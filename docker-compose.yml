@@ -60,8 +60,6 @@ services:
     volumes:
       - ./instances/${PROJECT_NAME}/www:/var/www/html
       - ./instances/${PROJECT_NAME}/config/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-    ports:
-      - "${APP_PORT:-8000}:80"
     networks:
       - net
     depends_on:

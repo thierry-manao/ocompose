@@ -52,8 +52,7 @@ const fieldNames = [
     'PHP_ENABLED',
     'PHP_VERSION',
     'PHP_EXTENSIONS',
-    'APP_PORT',
-    'NGINX_DOCUMENT_ROOT',
+    'VHOSTS',
     'MYSQL_ENABLED',
     'MYSQL_VERSION',
     'MYSQL_ROOT_PASSWORD',
@@ -291,8 +290,24 @@ function buildSshTarget(port) {
     return `${getAccessHostname()}:${normalizedPort}`;
 }
 
+function parseVhostUrls(instance) {
+    const vhosts = String(instance?.config?.VHOSTS || '').trim();
+    if (!vhosts) {
+        return [];
+    }
+
+    return vhosts.split(',').map((entry) => entry.trim()).filter(Boolean).map((entry) => {
+        const [port, docroot] = entry.split(':');
+        const label = docroot || '/';
+        return {
+            url: `http://${getAccessHostname()}:${port}`,
+            label: label === '/' ? `app :${port}` : `${docroot} :${port}`,
+        };
+    });
+}
+
 function updateEndpoints(instance) {
-    heroAppPort.textContent = instance?.config?.APP_PORT || '-';
+    heroAppPort.textContent = instance?.config?.VHOSTS || '-';
     heroMysqlPort.textContent = instance?.config?.MYSQL_PORT || '-';
 }
 
@@ -517,7 +532,7 @@ function renderInstances() {
                 <span class="instance-card__status ${instance.status}">${instance.status}</span>
             </div>
             <div class="instance-card__meta">
-                <span><i class="bi bi-globe2"></i> ${instance.config.APP_PORT || '-'}</span>
+                <span><i class="bi bi-globe2"></i> ${instance.config.VHOSTS || '-'}</span>
                 <span><i class="bi bi-database"></i> ${instance.config.MYSQL_PORT || '-'}</span>
             </div>
         `;
@@ -582,11 +597,16 @@ function renderDashboardInstances() {
     }
 
     state.instances.forEach((instance) => {
-        const appUrl = buildHttpAccessUrl(instance?.config?.APP_PORT) || instance?.urls?.app || null;
+        const appUrls = parseVhostUrls(instance);
         const pmaUrl = buildHttpAccessUrl(instance?.config?.PHPMYADMIN_PORT) || instance?.urls?.phpmyadmin || null;
 
         const card = document.createElement('article');
         card.className = `dashboard-instance-card${instance.name === state.selectedInstanceName ? ' active' : ''}`;
+
+        const appLinks = appUrls.map((entry) =>
+            `<a class="btn btn-link p-0 dashboard-link-button" href="${entry.url}" target="_blank" rel="noreferrer">Ouvrir ${entry.label}</a>`
+        ).join('');
+
         card.innerHTML = `
             <div class="dashboard-instance-card__head">
                 <div>
@@ -596,7 +616,7 @@ function renderDashboardInstances() {
                 <span class="instance-card__status ${instance.status}">${instance.status}</span>
             </div>
             <div class="dashboard-instance-card__meta">
-                <span><i class="bi bi-globe2"></i> App ${instance.config.APP_PORT || '-'}</span>
+                <span><i class="bi bi-globe2"></i> App ${instance.config.VHOSTS || '-'}</span>
                 <span><i class="bi bi-database"></i> MySQL ${instance.config.MYSQL_PORT || '-'}</span>
             </div>
             <div class="dashboard-instance-card__actions">
@@ -607,7 +627,7 @@ function renderDashboardInstances() {
                 <button class="btn btn-sm btn-outline-danger" type="button" data-dashboard-action="destroy" data-dashboard-instance="${instance.name}">Détruire</button>
             </div>
             <div class="dashboard-instance-card__footer">
-                ${appUrl ? `<a class="btn btn-link p-0 dashboard-link-button" href="${appUrl}" target="_blank" rel="noreferrer">Ouvrir l'app</a>` : ''}
+                ${appLinks}
                 ${pmaUrl ? `<a class="btn btn-link p-0 dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">Ouvrir phpMyAdmin</a>` : ''}
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Ouvrir les paramètres</button>
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="shell" data-dashboard-instance="${instance.name}">Ouvrir la console</button>

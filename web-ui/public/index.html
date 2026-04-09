@@ -188,14 +188,10 @@
                                         </div>
 
                                         <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label class="form-label label-caps">Port de l'application</label>
-                                                <input class="form-control form-control-lg" type="number" name="APP_PORT">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label label-caps">Racine du document (nginx)</label>
-                                                <input class="form-control form-control-lg" type="text" name="NGINX_DOCUMENT_ROOT" placeholder="public">
-                                                <div class="form-text mt-1">Chemin vers le point d'entrée (ex: public, web, ou vide pour racine)</div>
+                                            <div class="col-md-12">
+                                                <label class="form-label label-caps">Virtual Hosts (port:racine)</label>
+                                                <input class="form-control form-control-lg" type="text" name="VHOSTS" placeholder="8000:public,8001:api">
+                                                <div class="form-text mt-1">Une ou plusieurs entrées séparées par des virgules. Ex: <code>8000:public</code>, <code>8000:public,8001:api</code></div>
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label label-caps">Port SSH de l'espace de travail</label>
