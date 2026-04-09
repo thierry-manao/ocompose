@@ -8,6 +8,7 @@ const state = {
     consoleCursor: 0,
     consoleInstanceName: null,
     consolePollTimer: null,
+    pendingActions: {},
 };
 
 const form = document.querySelector('#config-form');
@@ -170,10 +171,74 @@ function getSelectedInstance() {
     return state.instances.find((instance) => instance.name === state.selectedInstanceName) || null;
 }
 
+function setInstancePending(instanceName, action) {
+    state.pendingActions[instanceName] = action;
+    updateAllActionButtons();
+}
+
+function clearInstancePending(instanceName) {
+    delete state.pendingActions[instanceName];
+    updateAllActionButtons();
+}
+
+function updateAllActionButtons() {
+    // Update sidebar action buttons (settings view)
+    actionButtons.forEach((button) => {
+        const instance = getSelectedInstance();
+        if (!instance) {
+            return;
+        }
+        const pending = state.pendingActions[instance.name];
+        const action = button.dataset.action;
+        button.disabled = !!pending;
+
+        if (pending && pending === action) {
+            if (!button.querySelector('.spinner-border')) {
+                const spinner = document.createElement('span');
+                spinner.className = 'spinner-border spinner-border-sm me-2';
+                spinner.setAttribute('role', 'status');
+                button.prepend(spinner);
+            }
+        } else {
+            const spinner = button.querySelector('.spinner-border');
+            if (spinner) {
+                spinner.remove();
+            }
+        }
+    });
+
+    // Update dashboard card buttons
+    dashboardInstanceGrid.querySelectorAll('[data-dashboard-action]').forEach((button) => {
+        const instanceName = button.dataset.dashboardInstance;
+        const action = button.dataset.dashboardAction;
+        const pending = state.pendingActions[instanceName];
+        button.disabled = !!pending;
+
+        if (pending && pending === action) {
+            if (!button.querySelector('.spinner-border')) {
+                const spinner = document.createElement('span');
+                spinner.className = 'spinner-border spinner-border-sm me-1';
+                spinner.setAttribute('role', 'status');
+                button.prepend(spinner);
+            }
+        } else {
+            const spinner = button.querySelector('.spinner-border');
+            if (spinner) {
+                spinner.remove();
+            }
+        }
+    });
+}
+
 async function runInstanceAction(instanceName, action) {
     const instance = state.instances.find((entry) => entry.name === instanceName);
     if (!instance) {
         setMessage('Instance introuvable.', true);
+        return;
+    }
+
+    if (state.pendingActions[instanceName]) {
+        setMessage(`Une opération est déjà en cours sur ${instanceName}.`, true);
         return;
     }
 
@@ -183,19 +248,23 @@ async function runInstanceAction(instanceName, action) {
 
     try {
         setMessage(`${action} ${instance.name}...`);
+        setInstancePending(instanceName, action);
         await apiRequest(`/api/instances/${instance.name}/actions/${action}`, {
             method: 'POST',
         });
 
         if (action === 'destroy') {
+            clearInstancePending(instanceName);
             await refreshInstances(false);
             setMessage(`${instance.name} détruit.`);
             return;
         }
 
+        clearInstancePending(instanceName);
         await refreshInstances();
         setMessage(`${action} terminé pour ${instance.name}.`);
     } catch (error) {
+        clearInstancePending(instanceName);
         setMessage(error.message, true);
     }
 }
