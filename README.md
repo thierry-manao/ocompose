@@ -2,7 +2,7 @@
 
 **Reproducible Docker Mini OS with configurable tools — multi-instance support.**
 
-Spin up isolated development environments with Nginx, PHP, MySQL, phpMyAdmin, and Git — each with its own config, ports, and data.
+Spin up isolated development environments with any combination of PHP, Node.js, Python, MySQL, MariaDB, PostgreSQL, Redis, and more — each instance with its own config, ports, and data.
 
 ---
 
@@ -25,10 +25,6 @@ ocompose myapp init
 # (Optional) Edit the config
 nano instances/myapp/.env
 
-# (Optional) Set a repo and branch for auto-bootstrap
-# GIT_REPO=https://github.com/example/project.git
-# GIT_BRANCH=main
-
 # Start it
 ocompose myapp up
 ```
@@ -37,13 +33,19 @@ ocompose myapp up
 
 ## Services
 
-| Service              | Type              | Description                                             |
-| -------------------- | ----------------- | ------------------------------------------------------- |
-| **Workspace**  | ✅ Mandatory      | Ubuntu mini-OS with**Git**, curl, vim, wget, etc. |
-| **Nginx**      | ⚙️ Configurable | Web server exposing your app on a host port             |
-| **PHP**        | ⚙️ Configurable | PHP-FPM + Composer (PHP 5.6 – 8.4+ via sury.org)       |
-| **MySQL**      | ⚙️ Configurable | MySQL server (version configurable)                     |
-| **phpMyAdmin** | ⚙️ Configurable | Web UI for MySQL                                        |
+| Service | Profiles | Description |
+| --- | --- | --- |
+| **Workspace** | ✅ Always | Ubuntu mini-OS with Git, curl, vim, wget, SSH server |
+| **Nginx** | ⚙️ All runtimes | Reverse proxy / static file server |
+| **PHP** | `APP_RUNTIME=php` | PHP-FPM + Composer (PHP 5.6 – 8.4+ via sury.org) |
+| **Node.js** | `APP_RUNTIME=node` | Node.js runtime with nodemon & pm2 |
+| **Python** | `APP_RUNTIME=python` | Python runtime with gunicorn & uvicorn |
+| **MySQL** | `DB_ENGINE=mysql` | MySQL server |
+| **MariaDB** | `DB_ENGINE=mariadb` | MariaDB server (drop-in MySQL replacement) |
+| **PostgreSQL** | `DB_ENGINE=postgres` | PostgreSQL server |
+| **phpMyAdmin** | `DB_ADMIN_ENABLED=true` | Web UI for MySQL / MariaDB (auto-selected) |
+| **pgAdmin** | `DB_ADMIN_ENABLED=true` | Web UI for PostgreSQL (auto-selected) |
+| **Redis** | `REDIS_ENABLED=true` | In-memory cache and message broker |
 
 ---
 
@@ -53,15 +55,15 @@ Each instance is fully isolated with its own containers, network, volumes, and p
 
 ```bash
 # Create multiple instances
-./scripts/ocompose.sh client-a init    # ports: 8000, 3306, 8080, 2222
-./scripts/ocompose.sh blog init        # ports: 8010, 3316, 8090, 2232
+ocompose client-a init    # ports: 8000, 3306, 8080, 2222
+ocompose blog init        # ports: 8010, 3316, 8090, 2232
 
 # Start them independently
-./scripts/ocompose.sh client-a up
-./scripts/ocompose.sh blog up
+ocompose client-a up
+ocompose blog up
 
 # List all instances
-./scripts/ocompose.sh list
+ocompose list
 ```
 
 Output:
@@ -69,9 +71,9 @@ Output:
 ```
 📦 ocompose instances:
 
-  INSTANCE             STATUS       APP                MYSQL      PMA        SSH
-  client-a             running      8000               3306       8080       2222
-  blog                 running      8010               3316       8090       2232
+  INSTANCE             STATUS       RUNTIME    DB         APP                DB PORT    ADMIN      SSH
+  client-a             running      php        mysql      8000               3306       8080       2222
+  blog                 running      node       postgres   8010               5442       8090       2232
 ```
 
 ---
@@ -84,11 +86,7 @@ Install the command into your user bin directory:
 ./scripts/ocompose.sh install-cli
 ```
 
-Default install location:
-
-```text
-~/.local/bin/ocompose
-```
+Default install location: `~/.local/bin/ocompose`
 
 Custom install location:
 
@@ -96,25 +94,20 @@ Custom install location:
 ./scripts/ocompose.sh install-cli ~/bin
 ```
 
-Remove it later if needed:
+Remove it later:
 
 ```bash
 ./scripts/ocompose.sh uninstall-cli
 ```
 
-If your shell cannot find `ocompose`, add the install directory to `PATH`.
-
 ## CLI Commands
 
 ```
 Usage: ocompose <instance> <command> [options]
-  ocompose list
-  ocompose ui [start] [port]
-  ocompose ui stop
-  ocompose ui restart [port]
-  ocompose ui status
-  ocompose install-cli [bin-dir]
-  ocompose uninstall-cli [bin-dir]
+       ocompose list
+       ocompose ui [start|stop|restart|status] [port]
+       ocompose install-cli [bin-dir]
+       ocompose uninstall-cli [bin-dir]
 
 Commands:
   init       Create a new instance
@@ -127,164 +120,185 @@ Commands:
   logs       Tail logs
   destroy    Remove instance entirely
   list       List all instances
-  ui         Start the web admin UI
-  install-cli     Install the `ocompose` command
-  uninstall-cli   Remove the installed `ocompose` command
+  ui         Manage the web admin UI
+  install-cli     Install the 'ocompose' command
+  uninstall-cli   Remove the installed 'ocompose' command
   help       Show this help
 ```
 
+---
+
 ## Web UI
 
-The project now includes a small admin server for instance management. It edits the same `instances/<name>/.env` files used by the CLI, and it can also run `init`, `up`, `down`, `restart`, and `destroy` for you.
+A small admin server for managing instances from the browser. It edits the same `.env` files used by the CLI and can run `init`, `up`, `down`, `restart`, and `destroy`.
 
-It also includes a browser console for the workspace container of a running instance. The console keeps a live shell session in the browser, so commands such as `cd`, `pwd`, and `git status` keep state between submissions.
+Includes a browser console for the workspace container — commands keep state between submissions (`cd`, `git status`, etc.).
 
-The admin UI is protected by a login. Credentials are generated on first start and stored in `.ocompose-ui.auth`, or you can provide them explicitly when starting the UI.
-
-```bash
-ocompose ui
-```
-
-Then open:
-
-```text
-http://localhost:8787
-```
-
-Optional custom port:
+Protected by login. Credentials are generated on first start and stored in `.ocompose-ui.auth`.
 
 ```bash
-ocompose ui 9090
-ocompose ui 8787 --username admin --password change-me-now
-```
-
-The UI now starts in the background and writes its PID and logs to the project root. You can inspect or stop it with:
-
-```bash
-ocompose ui status
-ocompose ui restart
-ocompose ui stop
-```
-
-If you change the web UI backend or client files while it is already running in the background, restart it so the new code is loaded.
-
-Authentication files:
-
-```text
-.ocompose-ui.auth
-.ocompose-ui.log
-```
-
-Web console notes:
-
-```text
-- Available only when the instance is running
-- Commands run inside <instance>_workspace
-- Working directory defaults to /home/<WORKSPACE_USER>/workspace
-- The shell session is persistent while the page stays open
+ocompose ui                                              # Start on default port 8787
+ocompose ui 9090                                         # Custom port
+ocompose ui 8787 --username admin --password my-secret   # Custom credentials
+ocompose ui status                                       # Check status
+ocompose ui restart                                      # Restart
+ocompose ui stop                                         # Stop
 ```
 
 ---
 
 ## Configuration
 
-Each instance has its own `.env` file at `instances/<name>/.env` and its own runtime config files under `instances/<name>/config/`.
+Each instance has its own `.env` file at `instances/<name>/.env` and runtime config files under `instances/<name>/config/`.
 
-Toggle services on/off:
-
-```env
-PHP_ENABLED=true
-MYSQL_ENABLED=true
-PHPMYADMIN_ENABLED=false   # disable phpMyAdmin
-```
-
-Reference DB import:
+### Application Runtime
 
 ```env
-MYSQL_DATABASE=app_db
-MYSQL_SEED_FILE=paie.sql
-MYSQL_RESEED_ON_STARTUP=true
+APP_RUNTIME=php        # php | node | python | static | none
 ```
 
-`ocompose <instance> up` ensures `MYSQL_DATABASE` exists, then imports the selected dump into that database.
-
-App access:
+#### PHP
 
 ```env
-VHOSTS=8000:public
+APP_RUNTIME=php
+PHP_VERSION=8.3
+PHP_EXTENSIONS="mysql mbstring zip gd curl intl xml"
 ```
 
-Then open:
+PHP versions are installed from [deb.sury.org](https://packages.sury.org/php/) (PHP 5.6 – 8.4+). Extensions are installed as distro packages.
+
+#### Node.js
+
+```env
+APP_RUNTIME=node
+NODE_VERSION=20
+NODE_COMMAND=node server.js
+```
+
+The Node container includes `nodemon` and `pm2` globally. Override `NODE_COMMAND` to use any start command (e.g. `npm start`, `nodemon app.js`).
+
+#### Python
+
+```env
+APP_RUNTIME=python
+PYTHON_VERSION=3.12
+PYTHON_COMMAND=gunicorn app:app --bind 0.0.0.0:8000
+```
+
+The Python container includes `gunicorn` and `uvicorn`. Override `PYTHON_COMMAND` for your framework.
+
+#### Static
+
+```env
+APP_RUNTIME=static
+```
+
+Nginx serves files directly. No backend container.
+
+### Database
+
+```env
+DB_ENGINE=mysql        # mysql | mariadb | postgres | none
+DB_VERSION=8.0         # Image tag (e.g. 8.0, 10.11, 16)
+DB_DATABASE=app_db
+DB_USER=app
+DB_PASSWORD=secret
+DB_ROOT_PASSWORD=root
+DB_PORT=3306
+```
+
+Database admin is auto-selected: phpMyAdmin for MySQL/MariaDB, pgAdmin for PostgreSQL.
+
+```env
+DB_ADMIN_ENABLED=true
+DB_ADMIN_PORT=8080
+
+# pgAdmin only
+PGADMIN_EMAIL=admin@local.dev
+PGADMIN_PASSWORD=secret
+```
+
+### Seed Import
+
+Place `.sql` or `.sql.gz` dumps in the shared `db/` folder:
 
 ```text
-http://localhost:8000
+db/compta.sql
+db/gescom.sql
+db/paie.sql
 ```
+
+```env
+DB_SEED_FILE=compta.sql
+DB_RESEED_ON_STARTUP=true
+```
+
+- `DB_RESEED_ON_STARTUP=true` — every `up`/`restart` drops and recreates the database, then imports the dump.
+- `DB_RESEED_ON_STARTUP=false` — imports once, then skips until `DB_DATABASE`, `DB_SEED_FILE`, or the dump file changes. State is tracked in `instances/<name>/seed-state/`.
+
+### Redis
+
+```env
+REDIS_ENABLED=true
+REDIS_VERSION=7
+REDIS_PORT=6379
+```
+
+Available to all runtimes via hostname `redis`.
 
 ### Virtual Hosts
 
-`VHOSTS` defines one or more virtual hosts as a comma-separated list of `port:documentRoot` entries. Each entry creates its own nginx server block and port mapping.
-
-**Single app** (default):
+`VHOSTS` defines one or more virtual hosts as a comma-separated list of `port:documentRoot` entries.
 
 ```env
-VHOSTS=8000:public
+VHOSTS=8000:public                         # Single app
+VHOSTS=8000:public,8001:api               # App + API
+VHOSTS=8000:public,8001:api,8002:admin    # Multiple services
+VHOSTS=8000:                               # Serve from www/ root
 ```
 
-**App + API** (same repo, different entry points):
-
-```env
-VHOSTS=8000:public,8001:api
-```
-
-→ `http://localhost:8000` serves from `www/public/`, `http://localhost:8001` serves from `www/api/`
-
-**Multiple services:**
-
-```env
-VHOSTS=8000:public,8001:api,8002:admin,8003:docs
-```
-
-**Serve from workspace root** (no subdirectory):
-
-```env
-VHOSTS=8000:
-```
+Nginx generates the appropriate config per runtime:
+- **PHP**: `fastcgi_pass php:9000`
+- **Node.js**: `proxy_pass http://node:3000`
+- **Python**: `proxy_pass http://python:8000`
+- **Static**: direct file serving
 
 Nginx config and port mappings are regenerated automatically on every `up` / `restart`.
 
-Legacy `APP_PORT` and `NGINX_DOCUMENT_ROOT` are still supported for backward compatibility — if `VHOSTS` is empty, ocompose falls back to those values.
+### CodeIgniter Auto-Configuration
 
-**CodeIgniter auto-configuration:**
+#### CodeIgniter 4
 
-When you restart an instance with a CodeIgniter 4 project, ocompose will automatically configure the `.env` file inside your workspace to:
+When a CI4 project is detected (`application/Config/` or `env` template), ocompose auto-configures `.env` with `CI_ENVIRONMENT`, `app.baseURL`, database connection, etc.
 
-- Set `CI_ENVIRONMENT = development`
-- Set `app.baseURL` to `http://<server-ip>:<first-vhost-port>/` (auto-detected from server)
-- Disable `app.forceGlobalSecureRequests` to prevent HTTPS redirects
-- Configure database connection using your MySQL settings
+#### CodeIgniter 3
 
-The base URL is automatically detected using the server's primary IP address and the first port from your `VHOSTS` config. This means CodeIgniter projects work out of the box without manual `.env` editing.
+When a CI3 project is detected (`application/config/` + `system/core/`), ocompose generates:
 
-If you need to override the auto-detected URL (e.g., for a custom domain), you can manually add `APP_BASE_URL` to your instance's `.env` file.
-
-Change versions:
+- `.ocompose.env.php` — auto-prepend file that defines `BDD_HOST`, `BDD_USER`, `BDD_PWD`, `APP_ROOT` from Docker env vars
+- `application/config/docker/` — environment-specific overrides for `config.php`, `database.php`, `constants.php`
+- Forces `ENVIRONMENT = 'docker'` so CI3 loads the `config/docker/` directory
 
 ```env
-PHP_VERSION=7.4
-MYSQL_VERSION=5.7
+CI3_ENABLED=auto           # auto | true | false
+CI3_BASE_URL=              # Override base_url (empty = auto from VHOSTS)
+CI3_SESSION_SAVE_PATH=     # Override sess_save_path (default: /tmp/ci_sessions)
+CI3_APP_ROOT=              # Override APP_ROOT constant
+CI3_EXTRA_CONSTANTS=       # Extra CONST=ENV_VAR pairs, comma-separated
 ```
 
-PHP versions are installed from the [deb.sury.org](https://packages.sury.org/php/) repository, which supports PHP 5.6 through 8.4+. Extensions are installed as distro packages (e.g. `mysql`, `mbstring`, `gd`).
+The CI3 app source code is **never modified** — all overrides are injected via `auto_prepend_file` and CI3's environment config mechanism.
 
-Custom user inside the workspace:
+### Workspace Identity
 
 ```env
-WORKSPACE_USER=john
-WORKSPACE_UID=1001
-WORKSPACE_GID=1001
+WORKSPACE_USER=developer
+WORKSPACE_UID=1000
+WORKSPACE_GID=1000
+WORKSPACE_SHELL=/bin/bash
 ```
 
-Git bootstrap on startup:
+### Git Bootstrap
 
 ```env
 GIT_REPO=https://github.com/example/project.git
@@ -293,39 +307,28 @@ GIT_HTTP_USERNAME=
 GIT_HTTP_PASSWORD=
 ```
 
-When these values are set, `ocompose <instance> up` clones the repository into `instances/<name>/www` the first time, then checks out the configured branch on each start. Existing non-empty workspaces are left alone unless they only contain the default placeholder `index.php`.
+On `ocompose up`, the repository is cloned into `instances/<name>/www/` the first time, then the branch is checked out on each start. For private HTTPS repos, use a personal access token in `GIT_HTTP_PASSWORD`.
 
-For private HTTPS repositories, you can optionally set `GIT_HTTP_USERNAME` and `GIT_HTTP_PASSWORD` so the host git clone runs non-interactively. For GitLab, prefer using a personal access token in `GIT_HTTP_PASSWORD` instead of your actual account password.
+### Backward Compatibility
 
-**Workspace permissions**: After cloning, the workspace is automatically set to `777` permissions to ensure PHP-FPM can write to directories like `writable/` in CodeIgniter or `storage/` in Laravel.
+Old `MYSQL_*`, `PHP_ENABLED`, `MYSQL_ENABLED`, `PHPMYADMIN_ENABLED` env vars are automatically mapped to the new `DB_*`, `APP_RUNTIME`, `DB_ENGINE`, `DB_ADMIN_ENABLED` vars. Existing `.env` files keep working without changes.
 
-Per-instance runtime config files are created automatically from the versioned defaults in `config/`:
+---
+
+## Per-Instance Config Files
 
 ```text
-instances/<name>/config/nginx/default.conf
+instances/<name>/config/nginx/default.conf      # Auto-generated from VHOSTS + APP_RUNTIME
 instances/<name>/config/php/php.ini
 instances/<name>/config/mysql/my.cnf
+instances/<name>/config/mariadb/my.cnf
 instances/<name>/config/ssh/authorized_keys
 instances/<name>/config/ssh/id_ed25519
 instances/<name>/config/ssh/id_ed25519.pub
 instances/<name>/seed-state/
 ```
 
-That means one instance can change PHP, MySQL, or Nginx settings without affecting the others.
-
-MySQL seed import from the shared `db/` folder:
-
-```text
-db/compta.sql
-db/gescom.sql
-db/paie.sql
-```
-
-Set `MYSQL_SEED_FILE` to one of the files in `db/`.
-
-If `MYSQL_RESEED_ON_STARTUP=true`, every `up` and `restart` drops and recreates `MYSQL_DATABASE`, then imports the selected dump.
-
-If `MYSQL_RESEED_ON_STARTUP=false`, ocompose imports the dump the first time, then skips later imports until `MYSQL_DATABASE`, `MYSQL_SEED_FILE`, or the dump content changes. Import state is tracked in `instances/<name>/seed-state/mysql-seed.signature`.
+Each instance can customize PHP, database, or Nginx settings independently.
 
 ---
 
@@ -333,81 +336,60 @@ If `MYSQL_RESEED_ON_STARTUP=false`, ocompose imports the dump the first time, th
 
 ```
 ocompose/
-├── docker-compose.yml          # Shared compose template
-├── .env.example                # Config template
-├── instances/                  # Per-instance data & config
-│   ├── client-a/
-│   │   ├── .env
-│   │   ├── docker-compose.vhosts.yml  # Auto-generated port mappings
-│   │   ├── config/
-│   │   │   ├── nginx/default.conf
-│   │   │   ├── php/php.ini
-│   │   │   ├── mysql/my.cnf
-│   │   │   └── ssh/
-│   │   │       ├── authorized_keys
-│   │   │       ├── id_ed25519
-│   │   │       └── id_ed25519.pub
-│   │   ├── seed-state/
-│   │   └── www/
-│   └── blog/
+├── docker-compose.yml
+├── .env.example
+├── instances/
+│   └── <name>/
 │       ├── .env
+│       ├── docker-compose.vhosts.yml      # Auto-generated
 │       ├── config/
+│       │   ├── nginx/default.conf
+│       │   ├── php/php.ini
+│       │   ├── mysql/my.cnf
+│       │   ├── mariadb/my.cnf
+│       │   └── ssh/
 │       ├── seed-state/
 │       └── www/
-├── db/
-│   ├── compta.sql
-│   ├── gescom.sql
-│   └── paie.sql
+├── db/                                     # Shared SQL dumps
 ├── services/
-│   ├── workspace/
-│   │   ├── Dockerfile          # Base OS + Git + SSH (mandatory)
-│   │   └── entrypoint.sh       # Starts sshd then exec CMD
-│   └── php/Dockerfile          # PHP-FPM via sury.org (5.6 – 8.4+)
+│   ├── workspace/Dockerfile                # Base OS + SSH (mandatory)
+│   ├── php/Dockerfile                      # PHP-FPM (5.6 – 8.4+)
+│   ├── node/Dockerfile                     # Node.js (14 – 22+)
+│   └── python/Dockerfile                   # Python (3.8 – 3.12+)
 ├── config/
-│   ├── nginx/default.conf      # Default Nginx template copied into instances
-│   ├── php/php.ini             # Default PHP template copied into instances
-│   └── mysql/my.cnf            # Default MySQL template copied into instances
-├── scripts/
-│   └── ocompose.sh             # Multi-instance CLI
-└── www/
-    └── index.php               # Default landing page template
+│   ├── nginx/default.conf
+│   ├── php/php.ini
+│   ├── mysql/my.cnf
+│   └── mariadb/my.cnf
+├── scripts/ocompose.sh
+├── web-ui/
+│   ├── server.js
+│   └── public/
+└── www/index.php
 ```
 
 ---
 
 ## SSH Access
 
-Each instance runs an SSH server so external developers can connect directly to the workspace container.
+Each instance runs an SSH server for external developer access.
 
-**How it works:**
-
-- `ocompose <instance> init` generates an ed25519 keypair in `instances/<name>/config/ssh/`
-- The public key is automatically added to `authorized_keys`
-- The workspace container starts `sshd` on port 22, exposed on the host via `WORKSPACE_SSH_PORT`
-- Password authentication is disabled — only key-based access is allowed
-
-**Give a dev access using the generated key:**
+- `ocompose <instance> init` generates an ed25519 keypair
+- Password authentication is disabled — key-based only
+- `WORKSPACE_SSH_PORT` controls the host port (auto-assigned on init)
 
 ```bash
 # Show SSH connection details
 ocompose myapp ssh-info
 
-# Send the private key to the dev
-# They connect with:
-ssh -i id_ed25519 -p 2222 developer@your-server
-```
-
-**Give a dev access using their own key:**
-
-```bash
-# Append their public key to the instance authorized_keys
+# Give a dev access using their own key
 cat their_key.pub >> instances/myapp/config/ssh/authorized_keys
 
 # They connect with:
 ssh -p 2222 developer@your-server
 ```
 
-No container restart is needed after adding keys — sshd reads `authorized_keys` on each connection.
+No container restart needed after adding keys.
 
 ---
 
