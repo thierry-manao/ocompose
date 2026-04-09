@@ -161,6 +161,43 @@ resolve_legacy_vars() {
     export MYSQL_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-root}"
 }
 
+# ── Validate DB version is pullable by modern Docker/containerd ──
+validate_db_version() {
+    local engine="${DB_ENGINE:-mysql}"
+    local version="${DB_VERSION:-}"
+    [[ "$engine" == "none" || -z "$version" ]] && return 0
+
+    # Extract the major.minor as a comparable number (e.g. 10.1 → 1001, 8.0 → 800)
+    local major minor
+    major="${version%%.*}"
+    minor="${version#*.}"; minor="${minor%%.*}"
+    [[ "$minor" =~ ^[0-9]+$ ]] || minor=0
+    local ver_num=$(( major * 100 + minor ))
+
+    local min_label=""
+    case "$engine" in
+        mariadb)
+            # MariaDB images before 10.2 use the old v1 manifest
+            if (( ver_num < 1002 )); then
+                min_label="10.2"
+            fi
+            ;;
+        mysql)
+            # MySQL images before 5.6 are unavailable
+            if (( ver_num < 506 )); then
+                min_label="5.6"
+            fi
+            ;;
+    esac
+
+    if [[ -n "$min_label" ]]; then
+        echo -e "${YELLOW}⚠  ${engine}:${version} is too old — its Docker image uses a manifest format"
+        echo -e "   no longer supported by modern containerd (v2.1+).${NC}"
+        echo -e "   → Auto-correcting to ${BOLD}${engine}:${min_label}${NC}"
+        export DB_VERSION="$min_label"
+    fi
+}
+
 resolve_db_seed_file() {
     local seed_file="${DB_SEED_FILE:-}"
     local base_name
@@ -1255,6 +1292,7 @@ load_instance_env() {
     export PROJECT_NAME="$INSTANCE"
 
     resolve_legacy_vars
+    validate_db_version
     ensure_instance_files
 }
 
