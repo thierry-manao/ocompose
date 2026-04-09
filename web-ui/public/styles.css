@@ -844,3 +844,34 @@ button:disabled {
         border-radius: 18px;
     }
 }
+
+/* ── Config file viewer ── */
+.config-file-block {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.config-file-header {
+    display: flex;
+    align-items: center;
+    padding: 0.65rem 1rem;
+    background: var(--dark);
+    color: #eff6ff;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.config-file-content {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    background: var(--dark-soft);
+    color: #d4dde9;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 28rem;
+    overflow-y: auto;
+}

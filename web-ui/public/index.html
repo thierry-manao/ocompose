@@ -30,6 +30,7 @@
                         <button type="button" class="section-nav__button active" data-view="dashboard"><i class="bi bi-grid-1x2"></i><span>Tableau de bord</span></button>
                         <button type="button" class="section-nav__button" data-view="instances"><i class="bi bi-boxes"></i><span>Instances</span></button>
                         <button type="button" class="section-nav__button" data-view="settings"><i class="bi bi-sliders"></i><span>Paramètres</span></button>
+                        <button type="button" class="section-nav__button" data-view="files"><i class="bi bi-file-earmark-code"></i><span>Fichiers</span></button>
                         <button type="button" class="section-nav__button" data-view="shell"><i class="bi bi-terminal"></i><span>Console</span></button>
                     </div>
 
@@ -346,6 +347,23 @@
                             </div>
                         </section>
                     </form>
+                </section>
+
+                <section class="view-panel" data-view-panel="files">
+                    <section class="card-shell p-4 p-lg-5 mb-4">
+                        <div class="section-header mb-4">
+                            <div class="section-icon"><i class="bi bi-file-earmark-code"></i></div>
+                            <div>
+                                <p class="eyebrow eyebrow-dark mb-2">Lecture seule</p>
+                                <h2 class="section-title mb-1">Fichiers de configuration</h2>
+                                <p class="section-copy mb-0">Consultez les fichiers de configuration générés pour l'instance sélectionnée.</p>
+                            </div>
+                        </div>
+
+                        <div id="files-container" class="files-container">
+                            <p class="text-secondary">Sélectionnez une instance pour afficher ses fichiers de configuration.</p>
+                        </div>
+                    </section>
                 </section>
 
                 <section class="view-panel" data-view-panel="shell">

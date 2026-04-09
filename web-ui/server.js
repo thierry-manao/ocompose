@@ -792,6 +792,37 @@ async function handleInstanceApi(request, response, url) {
         return true;
     }
 
+    if (pathParts.length === 4 && pathParts[0] === 'api' && pathParts[1] === 'instances' && pathParts[3] === 'files') {
+        const instanceName = pathParts[2];
+        validateInstanceName(instanceName);
+
+        if (request.method === 'GET') {
+            const instanceDir = path.join(INSTANCES_DIR, instanceName);
+            const configFiles = [
+                { name: 'nginx/default.conf', path: path.join(instanceDir, 'config', 'nginx', 'default.conf') },
+                { name: 'php/php.ini', path: path.join(instanceDir, 'config', 'php', 'php.ini') },
+                { name: 'mysql/my.cnf', path: path.join(instanceDir, 'config', 'mysql', 'my.cnf') },
+                { name: 'docker-compose.vhosts.yml', path: path.join(instanceDir, 'docker-compose.vhosts.yml') },
+                { name: '.env', path: path.join(instanceDir, '.env') },
+            ];
+
+            const files = [];
+            for (const entry of configFiles) {
+                try {
+                    const content = await fs.readFile(entry.path, 'utf8');
+                    files.push({ name: entry.name, content });
+                } catch (error) {
+                    if (error.code !== 'ENOENT') {
+                        throw error;
+                    }
+                }
+            }
+
+            sendJson(response, 200, { files });
+            return true;
+        }
+    }
+
     if (request.method === 'GET' && url.pathname === '/api/instances') {
         sendJson(response, 200, { instances: await listInstances(accessHost) });
         return true;

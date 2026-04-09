@@ -39,6 +39,7 @@ const consoleSubtitle = document.querySelector('#console-subtitle');
 const consoleCwd = document.querySelector('#console-cwd');
 const consoleStatus = document.querySelector('#console-status');
 const consoleShortcutButtons = Array.from(document.querySelectorAll('[data-console-command]'));
+const filesContainer = document.querySelector('#files-container');
 
 const fieldNames = [
     'WORKSPACE_USER',
@@ -141,6 +142,10 @@ function setActiveView(viewName) {
     if (viewName === 'shell') {
         updateConsoleState(getSelectedInstance());
         consoleCommand.focus();
+    }
+
+    if (viewName === 'files') {
+        loadInstanceFiles();
     }
 }
 
@@ -311,6 +316,41 @@ function updateEndpoints(instance) {
     heroMysqlPort.textContent = instance?.config?.MYSQL_PORT || '-';
 }
 
+function escapeHtml(text) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function loadInstanceFiles() {
+    const instance = getSelectedInstance();
+    if (!instance) {
+        filesContainer.innerHTML = '<p class="text-secondary">Sélectionnez une instance pour afficher ses fichiers de configuration.</p>';
+        return;
+    }
+
+    try {
+        filesContainer.innerHTML = '<p class="text-secondary">Chargement…</p>';
+        const payload = await apiRequest(`/api/instances/${instance.name}/files`);
+        const files = payload.files || [];
+
+        if (files.length === 0) {
+            filesContainer.innerHTML = '<p class="text-secondary">Aucun fichier de configuration trouvé.</p>';
+            return;
+        }
+
+        filesContainer.innerHTML = files.map((file) => `
+            <div class="config-file-block mb-4">
+                <div class="config-file-header">
+                    <i class="bi bi-file-earmark-text me-2"></i>
+                    <strong>${escapeHtml(file.name)}</strong>
+                </div>
+                <pre class="config-file-content">${escapeHtml(file.content)}</pre>
+            </div>
+        `).join('');
+    } catch (error) {
+        filesContainer.innerHTML = `<p class="text-danger">${escapeHtml(error.message)}</p>`;
+    }
+}
+
 function setConsoleEnabled(enabled) {
     consoleCommand.disabled = !enabled;
     consoleClearButton.disabled = !enabled;
@@ -478,6 +518,9 @@ function fillForm(instance) {
         statusChip.textContent = 'inactif';
         statusChip.className = 'status-chip idle';
         updateConsoleState(null);
+        if (state.activeView === 'files') {
+            loadInstanceFiles();
+        }
         return;
     }
 
@@ -507,6 +550,9 @@ function fillForm(instance) {
     statusChip.className = `status-chip ${instance.status}`;
     updateEndpoints(instance);
     updateConsoleState(instance);
+    if (state.activeView === 'files') {
+        loadInstanceFiles();
+    }
 }
 
 function renderInstances() {
