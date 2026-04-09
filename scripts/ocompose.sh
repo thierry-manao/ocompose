@@ -1019,7 +1019,13 @@ cmd_destroy() {
         load_instance_env
         compose_cmd down -v 2>/dev/null || true
     fi
-    rm -rf "$INSTANCES_DIR/$INSTANCE"
+
+    # Files created by Docker containers are owned by root; use a temporary
+    # container to remove them so that non-root users can destroy instances.
+    docker run --rm -v "$INSTANCES_DIR/$INSTANCE:/target" alpine rm -rf /target 2>/dev/null \
+        || rm -rf "$INSTANCES_DIR/$INSTANCE"
+    # If the bind-mount trick only emptied the dir, clean up the leftover.
+    rm -rf "$INSTANCES_DIR/$INSTANCE" 2>/dev/null || true
     echo -e "${GREEN}✅ Instance '$INSTANCE' destroyed.${NC}"
 }
 
