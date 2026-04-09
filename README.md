@@ -1,4 +1,3 @@
-
 # 🐳 ocompose
 
 **Reproducible Docker Mini OS with configurable tools — multi-instance support.**
@@ -223,6 +222,7 @@ http://localhost:8000
 ```
 
 `NGINX_DOCUMENT_ROOT` specifies the subdirectory inside your workspace that nginx should serve. For example:
+
 - Leave empty (or set to `/`) to serve from the workspace root
 - Set to `public` to serve from `/var/www/html/public`
 - Set to `web` for Laravel-style projects that use `web/index.php`
@@ -232,6 +232,7 @@ This is useful when your cloned Git repository has its own entry point structure
 **CodeIgniter auto-configuration:**
 
 When you restart an instance with a CodeIgniter 4 project, ocompose will automatically configure the `.env` file inside your workspace to:
+
 - Set `CI_ENVIRONMENT = development`
 - Set `app.baseURL` to `http://<server-ip>:<APP_PORT>/` (auto-detected from server)
 - Disable `app.forceGlobalSecureRequests` to prevent HTTPS redirects

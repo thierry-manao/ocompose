@@ -29,7 +29,7 @@ services:
       dockerfile: Dockerfile
       args:
         PHP_VERSION: ${PHP_VERSION:-8.3}
-        PHP_EXTENSIONS: ${PHP_EXTENSIONS:-"pdo pdo_mysql mysqli mbstring zip gd curl intl"}
+        PHP_EXTENSIONS: ${PHP_EXTENSIONS:-"mysql mbstring zip gd curl intl xml"}
     container_name: ${PROJECT_NAME}_php
     hostname: ${PROJECT_NAME}-php
     environment:
@@ -43,7 +43,7 @@ services:
       PHPMYADMIN_PORT: ${PHPMYADMIN_PORT:-8080}
     volumes:
       - ./instances/${PROJECT_NAME}/www:/var/www/html
-      - ./instances/${PROJECT_NAME}/config/php/php.ini:/usr/local/etc/php/conf.d/custom.ini
+      - ./instances/${PROJECT_NAME}/config/php/php.ini:/etc/php/custom.ini
     networks:
       - net
     depends_on:
