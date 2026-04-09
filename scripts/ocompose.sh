@@ -227,6 +227,17 @@ wait_for_db_ready() {
     local engine="${DB_ENGINE:-mysql}"
 
     while [[ $attempt -le $max_attempts ]]; do
+        # Bail early if the container has already exited (crashed)
+        local state
+        state="$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null || echo "missing")"
+        if [[ "$state" == "false" || "$state" == "missing" ]]; then
+            echo -e "${RED}✗ Database container '${container}' is not running (crashed or failed to start).${NC}"
+            echo -e "  Check logs with:  docker logs $container"
+            echo -e "  If upgrading DB versions, the old data volume may be incompatible."
+            echo -e "  To reset:  docker volume rm ${INSTANCE}_${engine}_data  then retry."
+            exit 1
+        fi
+
         case "$engine" in
             mysql|mariadb)
                 if docker exec -e MYSQL_PWD="${DB_ROOT_PASSWORD:-root}" "$container" mysqladmin ping -h 127.0.0.1 -uroot --silent >/dev/null 2>&1; then
@@ -245,6 +256,7 @@ wait_for_db_ready() {
     done
 
     echo -e "${RED}✗ Database ($engine) did not become ready in time for '$INSTANCE'.${NC}"
+    echo -e "  Check logs with:  docker logs $(db_container_name)"
     exit 1
 }
 
