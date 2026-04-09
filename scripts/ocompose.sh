@@ -998,8 +998,12 @@ cmd_logs() {
 
 cmd_destroy() {
     require_instance
-    load_instance_env
     local auto_confirm="false"
+
+    if [[ ! -d "$INSTANCES_DIR/$INSTANCE" ]]; then
+        echo -e "${RED}✗ Instance '$INSTANCE' not found.${NC}"
+        exit 1
+    fi
 
     if has_flag "--yes" "$@"; then
         auto_confirm="true"
@@ -1011,7 +1015,10 @@ cmd_destroy() {
         [[ "$confirm" != "y" && "$confirm" != "Y" ]] && exit 0
     fi
 
-    compose_cmd down -v 2>/dev/null || true
+    if [[ -f "$INSTANCES_DIR/$INSTANCE/.env" ]]; then
+        load_instance_env
+        compose_cmd down -v 2>/dev/null || true
+    fi
     rm -rf "$INSTANCES_DIR/$INSTANCE"
     echo -e "${GREEN}✅ Instance '$INSTANCE' destroyed.${NC}"
 }
