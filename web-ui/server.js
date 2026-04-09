@@ -708,7 +708,7 @@ async function serveStaticFile(response, relativePath) {
         const content = await fs.readFile(resolvedPath);
         send(response, 200, content, MIME_TYPES[path.extname(resolvedPath).toLowerCase()] || 'application/octet-stream');
     } catch (error) {
-        if (error.code === 'ENOENT') {
+        if (error.code === 'ENOENT' || error.code === 'EISDIR') {
             send(response, 404, 'Not found');
             return;
         }
@@ -812,7 +812,7 @@ async function handleInstanceApi(request, response, url) {
                     const content = await fs.readFile(entry.path, 'utf8');
                     files.push({ name: entry.name, content });
                 } catch (error) {
-                    if (error.code !== 'ENOENT') {
+                    if (error.code !== 'ENOENT' && error.code !== 'EISDIR') {
                         throw error;
                     }
                 }
