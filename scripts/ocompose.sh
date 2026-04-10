@@ -10,6 +10,19 @@ UI_AUTH_FILE="$PROJECT_DIR/.ocompose-ui.auth"
 CLI_WRAPPER_FILE="$PROJECT_DIR/ocompose"
 CLI_WRAPPER_CMD_FILE="$PROJECT_DIR/ocompose.cmd"
 
+# ── Quiet mode: suppress verbose output when not on a terminal (web UI, CI) ──
+if [[ -t 1 ]]; then
+    OCOMPOSE_QUIET="false"
+else
+    OCOMPOSE_QUIET="true"
+fi
+
+# Print only in interactive (terminal) mode
+log_verbose() {
+    [[ "$OCOMPOSE_QUIET" == "true" ]] && return 0
+    echo -e "$@"
+}
+
 # ── Colors ──
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -488,17 +501,19 @@ checkout_instance_branch() {
     local workspace_dir="$1"
     local branch="$2"
     local repo_url="$3"
+    local _quiet_flag=""
+    [[ "$OCOMPOSE_QUIET" == "true" ]] && _quiet_flag="--quiet"
 
     [[ -z "$branch" ]] && return 0
 
     if git -C "$workspace_dir" show-ref --verify --quiet "refs/heads/$branch"; then
-        git -C "$workspace_dir" checkout "$branch"
+        git -C "$workspace_dir" checkout $_quiet_flag "$branch"
         return 0
     fi
 
     if git -C "$workspace_dir" remote get-url origin >/dev/null 2>&1; then
-        run_git_repo_command "$repo_url" -C "$workspace_dir" fetch origin "$branch" --prune
-        git -C "$workspace_dir" checkout -B "$branch" --track "origin/$branch"
+        run_git_repo_command "$repo_url" -C "$workspace_dir" fetch $_quiet_flag origin "$branch" --prune
+        git -C "$workspace_dir" checkout $_quiet_flag -B "$branch" --track "origin/$branch"
         return 0
     fi
 
@@ -529,20 +544,20 @@ bootstrap_instance_git_repo() {
         fi
 
         if [[ -n "$repo_url" && -n "$current_origin" && "$current_origin" != "$repo_url" ]]; then
-            echo -e "${YELLOW}⚠ Repository URL changed for '$INSTANCE'. Removing old workspace...${NC}"
-            echo "  Old origin: $current_origin"
-            echo "  New origin: $repo_url"
+            log_verbose "${YELLOW}⚠ Repository URL changed for '$INSTANCE'. Removing old workspace...${NC}"
+            log_verbose "  Old origin: $current_origin"
+            log_verbose "  New origin: $repo_url"
             rm -rf "$workspace_dir"
             mkdir -p "$workspace_dir"
 
-            echo -e "${CYAN}📥 Cloning new repository for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
+            log_verbose "${CYAN}📥 Cloning new repository for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
             if [[ -n "$branch" ]]; then
-                run_git_repo_command "$repo_url" clone --branch "$branch" --single-branch "$repo_url" "$workspace_dir"
+                run_git_repo_command "$repo_url" clone --quiet --branch "$branch" --single-branch "$repo_url" "$workspace_dir"
             else
-                run_git_repo_command "$repo_url" clone "$repo_url" "$workspace_dir"
+                run_git_repo_command "$repo_url" clone --quiet "$repo_url" "$workspace_dir"
             fi
 
-            echo -e "${CYAN}🔒 Setting workspace permissions (777)...${NC}"
+            log_verbose "${CYAN}🔒 Setting workspace permissions (777)...${NC}"
             chmod -R 777 "$workspace_dir" 2>/dev/null || true
             return 0
         fi
@@ -558,24 +573,24 @@ bootstrap_instance_git_repo() {
 
         prepare_workspace_for_clone "$workspace_dir"
 
-        echo -e "${CYAN}📥 Cloning repository for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
+        log_verbose "${CYAN}📥 Cloning repository for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
         if [[ -n "$branch" ]]; then
-            run_git_repo_command "$repo_url" clone --branch "$branch" --single-branch "$repo_url" "$workspace_dir"
+            run_git_repo_command "$repo_url" clone --quiet --branch "$branch" --single-branch "$repo_url" "$workspace_dir"
         else
-            run_git_repo_command "$repo_url" clone "$repo_url" "$workspace_dir"
+            run_git_repo_command "$repo_url" clone --quiet "$repo_url" "$workspace_dir"
         fi
 
-        echo -e "${CYAN}🔒 Setting workspace permissions (777)...${NC}"
+        log_verbose "${CYAN}🔒 Setting workspace permissions (777)...${NC}"
         chmod -R 777 "$workspace_dir" 2>/dev/null || true
     fi
 
     if [[ -n "$branch" ]]; then
-        echo -e "${CYAN}🌿 Switching '${BOLD}$INSTANCE${NC}${CYAN}' to branch '${BOLD}$branch${NC}${CYAN}'...${NC}"
+        log_verbose "${CYAN}🌿 Switching '${BOLD}$INSTANCE${NC}${CYAN}' to branch '${BOLD}$branch${NC}${CYAN}'...${NC}"
         checkout_instance_branch "$workspace_dir" "$branch" "$repo_url"
     fi
 
     # Set proper permissions for workspace files
-    echo -e "${CYAN}🔒 Setting workspace permissions (777)...${NC}"
+    log_verbose "${CYAN}🔒 Setting workspace permissions (777)...${NC}"
     chmod -R 777 "$workspace_dir" 2>/dev/null || true
 }
 
@@ -831,7 +846,7 @@ configure_codeigniter_env() {
     [[ "$base_url" != */ ]] && base_url="${base_url}/"
 
     # Configure CodeIgniter .env
-    echo -e "${CYAN}⚙️  Configuring CodeIgniter environment...${NC}"
+    log_verbose "${CYAN}⚙️  Configuring CodeIgniter environment...${NC}"
 
     # Set CI_ENVIRONMENT
     if grep -q "^#.*CI_ENVIRONMENT" "$ci_env_file"; then
@@ -897,7 +912,7 @@ configure_ci3_env() {
         [[ "$detected" == "false" ]] && return 0
     fi
 
-    echo -e "${CYAN}⚙️  Configuring CodeIgniter 3 environment...${NC}"
+    log_verbose "${CYAN}⚙️  Configuring CodeIgniter 3 environment...${NC}"
 
     # Resolve base URL
     local base_url="${CI3_BASE_URL:-${APP_BASE_URL:-}}"
@@ -1112,8 +1127,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 CI3_DEV_CONSTANTS
         fi
 
-        echo -e "   ${GREEN}✓${NC} Generated ${prepend_file#"$INSTANCES_DIR/$INSTANCE/"}"
-        echo -e "   ${GREEN}✓${NC} Generated application/config/development/ overrides"
+        log_verbose "   ${GREEN}✓${NC} Generated ${prepend_file#"$INSTANCES_DIR/$INSTANCE/"}"
+        log_verbose "   ${GREEN}✓${NC} Generated application/config/development/ overrides"
     done
 
     # Ensure php.ini has auto_prepend_file set
@@ -1138,7 +1153,7 @@ CI3_DEV_CONSTANTS
     # OR rely on /tmp.  We'll create a small init script that runs in the container.
     # For /tmp-based sessions, PHP can create the dir itself — just needs the
     # directory to exist.  We ensure it via an entrypoint addition.
-    echo -e "   ${GREEN}✓${NC} Session save path: ${session_path}"
+    log_verbose "   ${GREEN}✓${NC} Session save path: ${session_path}"
 }
 
 # ── Parse VHOSTS and resolve legacy APP_PORT / NGINX_DOCUMENT_ROOT ──
@@ -1384,12 +1399,22 @@ compose_cmd() {
         compose_files+=(-f "$vhosts_override")
     fi
 
-    docker compose \
-        "${compose_files[@]}" \
-        --env-file "$normalized_env_file" \
-        -p "$INSTANCE" \
-        $profiles \
-        "$@"
+    # In quiet mode (web UI), suppress Docker build/pull progress noise
+    if [[ "$OCOMPOSE_QUIET" == "true" ]]; then
+        docker compose \
+            "${compose_files[@]}" \
+            --env-file "$normalized_env_file" \
+            -p "$INSTANCE" \
+            $profiles \
+            "$@" > /dev/null 2>&1
+    else
+        docker compose \
+            "${compose_files[@]}" \
+            --env-file "$normalized_env_file" \
+            -p "$INSTANCE" \
+            $profiles \
+            "$@"
+    fi
     rm -f "$normalized_env_file"
 }
 
