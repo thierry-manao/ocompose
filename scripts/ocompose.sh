@@ -456,16 +456,23 @@ prepare_workspace_for_clone() {
         return 0
     fi
 
-    echo -e "${YELLOW}⚠  '$workspace_dir' already contains files (leftover from a previous run).${NC}"
-    if [[ -t 0 ]]; then
-        read -p "   Remove existing contents and clone fresh? (y/N): " clean_confirm
-        if [[ "$clean_confirm" == "y" || "$clean_confirm" == "Y" ]]; then
-            # Use Alpine container to handle root-owned files
-            docker run --rm -v "$workspace_dir:/target" alpine sh -c 'rm -rf /target/* /target/.[!.]* /target/..?*' 2>/dev/null || true
-            rm -rf "$workspace_dir"/* "$workspace_dir"/.[!.]* 2>/dev/null || true
-            return 0
-        fi
+    # Non-interactive (web UI, CI) or no .git dir (failed previous clone):
+    # auto-clean since GIT_REPO is explicitly configured.
+    if [[ ! -t 0 ]] || [[ ! -d "$workspace_dir/.git" ]]; then
+        echo -e "${YELLOW}⚠  Auto-cleaning '$workspace_dir' (leftover files, no valid repo).${NC}"
+        docker run --rm -v "$workspace_dir:/target" alpine sh -c 'rm -rf /target/* /target/.[!.]* /target/..?*' 2>/dev/null || true
+        rm -rf "$workspace_dir"/* "$workspace_dir"/.[!.]* 2>/dev/null || true
+        return 0
     fi
+
+    echo -e "${YELLOW}⚠  '$workspace_dir' already contains files (leftover from a previous run).${NC}"
+    read -p "   Remove existing contents and clone fresh? (y/N): " clean_confirm
+    if [[ "$clean_confirm" == "y" || "$clean_confirm" == "Y" ]]; then
+        docker run --rm -v "$workspace_dir:/target" alpine sh -c 'rm -rf /target/* /target/.[!.]* /target/..?*' 2>/dev/null || true
+        rm -rf "$workspace_dir"/* "$workspace_dir"/.[!.]* 2>/dev/null || true
+        return 0
+    fi
+
     echo -e "${RED}✗ Cannot clone into '$workspace_dir' because it already contains files.${NC}"
     echo "  Remove the existing contents or destroy the instance first:  ocompose $INSTANCE destroy"
     exit 1
