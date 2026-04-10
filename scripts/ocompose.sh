@@ -1621,24 +1621,24 @@ cmd_up() {
     configure_codeigniter_env
     configure_ci3_env
 
-    echo -e "${CYAN}🐳 Starting instance '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
+    log_verbose "${CYAN}🐳 Starting instance '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
     compose_cmd up -d --build "$@"
 
     # Ensure DB + user exist regardless of seed file
     local engine="${DB_ENGINE:-mysql}"
     if [[ "$engine" != "none" ]]; then
         if wait_for_db_ready; then
-            ensure_db_exists || echo -e "${YELLOW}⚠  Could not ensure database exists (non-fatal).${NC}"
-            grant_db_user_access || echo -e "${YELLOW}⚠  Could not grant DB user access (non-fatal).${NC}"
+            ensure_db_exists || log_verbose "${YELLOW}⚠  Could not ensure database exists (non-fatal).${NC}"
+            grant_db_user_access || log_verbose "${YELLOW}⚠  Could not grant DB user access (non-fatal).${NC}"
         else
-            echo -e "${YELLOW}⚠  Database not ready yet — skipping DB setup. It may need more time to initialize.${NC}"
+            log_verbose "${YELLOW}⚠  Database not ready yet — skipping DB setup. It may need more time to initialize.${NC}"
         fi
     fi
 
     import_db_seed_if_configured
     echo ""
     echo -e "${GREEN}✅ Instance '$INSTANCE' is running!${NC}"
-    echo -e "   Shell:      ./scripts/ocompose.sh $INSTANCE shell"
+    log_verbose "   Shell:      ./scripts/ocompose.sh $INSTANCE shell"
 
     local runtime="${APP_RUNTIME:-php}"
     if [[ "$runtime" != "none" ]]; then
@@ -1648,27 +1648,27 @@ cmd_up() {
             local vhost_port="${vhost_entry%%:*}"
             local vhost_docroot="${vhost_entry#*:}"
             [[ -z "$vhost_docroot" ]] && vhost_docroot="/"
-            echo -e "   App:        http://localhost:${vhost_port}  →  ${vhost_docroot}"
+            log_verbose "   App:        http://localhost:${vhost_port}  →  ${vhost_docroot}"
         done <<< "$RESOLVED_VHOSTS"
     fi
 
     local engine="${DB_ENGINE:-mysql}"
-    [[ "$engine" != "none" ]] && echo -e "   Database:   ${engine} @ localhost:${DB_PORT:-3306}"
+    [[ "$engine" != "none" ]] && log_verbose "   Database:   ${engine} @ localhost:${DB_PORT:-3306}"
 
     if [[ "${DB_ADMIN_ENABLED:-false}" == "true" ]]; then
         case "$engine" in
-            mysql|mariadb) echo -e "   phpMyAdmin: http://localhost:${DB_ADMIN_PORT:-8080}" ;;
-            postgres)      echo -e "   pgAdmin:    http://localhost:${DB_ADMIN_PORT:-5050}" ;;
+            mysql|mariadb) log_verbose "   phpMyAdmin: http://localhost:${DB_ADMIN_PORT:-8080}" ;;
+            postgres)      log_verbose "   pgAdmin:    http://localhost:${DB_ADMIN_PORT:-5050}" ;;
         esac
     fi
 
-    [[ "${REDIS_ENABLED:-false}" == "true" ]] && echo -e "   Redis:      localhost:${REDIS_PORT:-6379}"
+    [[ "${REDIS_ENABLED:-false}" == "true" ]] && log_verbose "   Redis:      localhost:${REDIS_PORT:-6379}"
 }
 
 cmd_down() {
     require_instance
     load_instance_env
-    echo -e "${CYAN}🛑 Stopping instance '$INSTANCE'...${NC}"
+    log_verbose "${CYAN}🛑 Stopping instance '$INSTANCE'...${NC}"
     compose_cmd down "$@"
     echo -e "${GREEN}✅ Stopped.${NC}"
 }
