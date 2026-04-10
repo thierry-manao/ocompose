@@ -1573,6 +1573,11 @@ cmd_up() {
     require_instance
     load_instance_env
     bootstrap_instance_git_repo
+
+    # Re-run CI3/CI4 detection after git clone (first run: www/ was empty during load_instance_env)
+    configure_codeigniter_env
+    configure_ci3_env
+
     echo -e "${CYAN}🐳 Starting instance '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
     compose_cmd up -d --build "$@"
     import_db_seed_if_configured
