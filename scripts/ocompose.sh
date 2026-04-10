@@ -1653,7 +1653,9 @@ cmd_up() {
     fi
 
     local engine="${DB_ENGINE:-mysql}"
-    [[ "$engine" != "none" ]] && log_verbose "   Database:   ${engine} @ localhost:${DB_PORT:-3306}"
+    if [[ "$engine" != "none" ]]; then
+        log_verbose "   Database:   ${engine} @ localhost:${DB_PORT:-3306}"
+    fi
 
     if [[ "${DB_ADMIN_ENABLED:-false}" == "true" ]]; then
         case "$engine" in
