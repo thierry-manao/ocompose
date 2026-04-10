@@ -456,8 +456,18 @@ prepare_workspace_for_clone() {
         return 0
     fi
 
+    echo -e "${YELLOW}⚠  '$workspace_dir' already contains files (leftover from a previous run).${NC}"
+    if [[ -t 0 ]]; then
+        read -p "   Remove existing contents and clone fresh? (y/N): " clean_confirm
+        if [[ "$clean_confirm" == "y" || "$clean_confirm" == "Y" ]]; then
+            # Use Alpine container to handle root-owned files
+            docker run --rm -v "$workspace_dir:/target" alpine sh -c 'rm -rf /target/* /target/.[!.]* /target/..?*' 2>/dev/null || true
+            rm -rf "$workspace_dir"/* "$workspace_dir"/.[!.]* 2>/dev/null || true
+            return 0
+        fi
+    fi
     echo -e "${RED}✗ Cannot clone into '$workspace_dir' because it already contains files.${NC}"
-    echo "  Remove the existing contents or use an empty instance workspace before enabling GIT_REPO."
+    echo "  Remove the existing contents or destroy the instance first:  ocompose $INSTANCE destroy"
     exit 1
 }
 
@@ -1676,12 +1686,19 @@ cmd_destroy() {
     fi
 
     # Files created by Docker containers are owned by root; use a temporary
-    # container to remove them so that non-root users can destroy instances.
-    docker run --rm -v "$INSTANCES_DIR/$INSTANCE:/target" alpine rm -rf /target 2>/dev/null \
-        || rm -rf "$INSTANCES_DIR/$INSTANCE"
-    # If the bind-mount trick only emptied the dir, clean up the leftover.
+    # container to delete the *contents* of the instance directory.
+    docker run --rm -v "$INSTANCES_DIR/$INSTANCE:/target" alpine sh -c 'rm -rf /target/* /target/.[!.]* /target/..?*' 2>/dev/null || true
+    # Now the directory should be empty and removable by the current user.
     rm -rf "$INSTANCES_DIR/$INSTANCE" 2>/dev/null || true
-    echo -e "${GREEN}✅ Instance '$INSTANCE' destroyed.${NC}"
+
+    # Final check: if stubborn files remain, tell the user.
+    if [[ -d "$INSTANCES_DIR/$INSTANCE" ]] && [[ -n "$(ls -A "$INSTANCES_DIR/$INSTANCE" 2>/dev/null)" ]]; then
+        echo -e "${YELLOW}⚠  Some files in '$INSTANCES_DIR/$INSTANCE' could not be removed.${NC}"
+        echo "  You may need to run:  sudo rm -rf $INSTANCES_DIR/$INSTANCE"
+    else
+        rm -df "$INSTANCES_DIR/$INSTANCE" 2>/dev/null || true
+        echo -e "${GREEN}✅ Instance '$INSTANCE' destroyed.${NC}"
+    fi
 }
 
 cmd_list() {
