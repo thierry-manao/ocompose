@@ -46,7 +46,23 @@ normalize_env_file() {
     local normalized_env_file
 
     normalized_env_file="$(mktemp)"
-    sed 's/\r$//' "$env_file" > "$normalized_env_file"
+    # Strip CRLF, then quote any unquoted values that contain spaces so bash
+    # source doesn't try to execute them as commands.
+    sed 's/\r$//' "$env_file" | while IFS= read -r line; do
+        # Skip comments, blanks, and lines without =
+        if [[ -z "$line" || "$line" == \#* || "$line" != *=* ]]; then
+            printf '%s\n' "$line"
+            continue
+        fi
+        local key="${line%%=*}"
+        local val="${line#*=}"
+        # If value contains spaces and is not already quoted, wrap in double quotes
+        if [[ "$val" == *" "* && "$val" != \"*\" && "$val" != \'*\' ]]; then
+            printf '%s="%s"\n' "$key" "$val"
+        else
+            printf '%s\n' "$line"
+        fi
+    done > "$normalized_env_file"
     echo "$normalized_env_file"
 }
 
