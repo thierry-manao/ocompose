@@ -1025,6 +1025,38 @@ unset(\$_ocompose_extras, \$_oc_name, \$_oc_val);
 PREPEND_EXTRA
         fi
 
+        # Auth URL override: replaces all identification/auth service URLs at once
+        local auth_url="${CI3_AUTH_URL:-}"
+        if [[ -n "$auth_url" ]]; then
+            cat >> "$prepend_file" <<PREPEND_AUTH
+// ── Auth service URL override (CI3_AUTH_URL) ──
+// Overrides all constants that typically point to the identification service.
+\$_oc_auth_url = '${auth_url}';
+\$_oc_auth_constants = array(
+    'URL_AUTHENTIFICATION',
+    'LIEN_GESTION_COMPTE',
+    'URL_COMPTE',
+    'URL_HEADER_CSS'         => '/assets/entete-manao/css/header.css?v=' . date('Ymd') . time(),
+    'URL_HEADER_VUEJS'       => '/assets/entete-manao/js/vue.min.js?v=' . date('Ymd') . time(),
+    'URL_HEADER_JS'          => '/assets/entete-manao/js/vue-header.js?v=' . date('Ymd') . time(),
+    'URL_CRYPTO_JS'          => '/assets/entete-manao/js/cryptojs-aes.min.js',
+    'URL_CRYPTOFORMAT_JS'    => '/assets/entete-manao/js/cryptojs-aes-format.js',
+    'URL_HEADER_GESTION_SESSION' => '/assets/entete-manao/js/sessionManager.js?v=' . date('Ymd') . time(),
+);
+foreach (\$_oc_auth_constants as \$_oc_key => \$_oc_suffix) {
+    if (is_int(\$_oc_key)) {
+        // Simple constant: just the base URL
+        if (!defined(\$_oc_suffix)) define(\$_oc_suffix, \$_oc_auth_url);
+    } else {
+        // Constant with path suffix
+        if (!defined(\$_oc_key)) define(\$_oc_key, \$_oc_auth_url . \$_oc_suffix);
+    }
+}
+unset(\$_oc_auth_url, \$_oc_auth_constants, \$_oc_key, \$_oc_suffix);
+
+PREPEND_AUTH
+        fi
+
         cat >> "$prepend_file" <<PREPEND_CI_CONFIG
 // ── CI3 \$config overrides (base_url, session) ──
 // These are picked up by a post-system hook or by direct patching

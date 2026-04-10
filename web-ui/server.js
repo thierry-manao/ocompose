@@ -579,6 +579,7 @@ function sanitizeConfig(inputConfig) {
         'CI3_APP_ROOT',
         'CI3_SESSION_SAVE_PATH',
         'CI3_BASE_URL',
+        'CI3_AUTH_URL',
     ]);
 
     const output = {};

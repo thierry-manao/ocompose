@@ -445,10 +445,15 @@
                                                 <input class="form-control" type="text" name="CI3_APP_ROOT" placeholder="/var/www/html">
                                                 <div class="form-text mt-1">Injecté dans <code>define('APP_ROOT', ...)</code>. Vide = auto.</div>
                                             </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">URL service d'authentification</label>
+                                                <input class="form-control" type="text" name="CI3_AUTH_URL" placeholder="http://identification.example.com">
+                                                <div class="form-text mt-1">Remplace toutes les constantes pointant vers le service d'identification (URL_AUTHENTIFICATION, URL_HEADER_*, etc.).</div>
+                                            </div>
                                             <div class="col-12">
                                                 <label class="form-label label-caps">Constantes supplémentaires</label>
-                                                <input class="form-control" type="text" name="CI3_EXTRA_CONSTANTS" placeholder="URL_LICENCE=URL_LICENCE,URL_API=URL_API">
-                                                <div class="form-text mt-1">Paires <code>NOM_CONSTANTE=NOM_ENV_VAR</code> séparées par virgules. Les constantes seront définies depuis les variables d'environnement Docker correspondantes.</div>
+                                                <input class="form-control" type="text" name="CI3_EXTRA_CONSTANTS" placeholder="URL_LICENCE=http://licences.local,URL_API=http://api.local">
+                                                <div class="form-text mt-1">Paires <code>NOM_CONSTANTE=valeur</code> séparées par virgules.</div>
                                             </div>
                                         </div>
                                     </section>
