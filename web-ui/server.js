@@ -886,7 +886,17 @@ async function handleInstanceApi(request, response, url) {
             return true;
         }
 
-        const result = await runOcompose(commands[action]);
+        let result;
+        try {
+            result = await runOcompose(commands[action]);
+        } catch (err) {
+            // execFileAsync rejects on non-zero exit; include stdout (where the
+            // actual error message lives) plus stderr for full diagnostics.
+            const output = [err.stdout, err.stderr].filter(Boolean).join('\n').trim();
+            sendJson(response, 500, { error: output || err.message || 'Command failed.' });
+            return true;
+        }
+
         if (action === 'destroy') {
             sendJson(response, 200, { ok: true, output: result.stdout || result.stderr || 'Destroyed.' });
             return true;
