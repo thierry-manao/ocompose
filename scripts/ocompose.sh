@@ -930,6 +930,8 @@ configure_ci3_env() {
     local app_root="${CI3_APP_ROOT:-/var/www/html}"
 
     # Build extra constant overrides from CI3_EXTRA_CONSTANTS
+    # Format: CONST_NAME=value,CONST_NAME2=value2
+    # Values are used directly (not as env var names).
     local extra_constants_php=""
     if [[ -n "${CI3_EXTRA_CONSTANTS:-}" ]]; then
         IFS=',' read -ra pairs <<< "$CI3_EXTRA_CONSTANTS"
@@ -937,8 +939,10 @@ configure_ci3_env() {
             pair="$(echo "$pair" | xargs)"
             [[ -z "$pair" || "$pair" != *=* ]] && continue
             local const_name="${pair%%=*}"
-            local env_name="${pair#*=}"
-            extra_constants_php+="    '${const_name}' => getenv('${env_name}'),"$'\n'
+            local const_value="${pair#*=}"
+            # Escape single quotes for PHP string literal (replace ' with \')
+            const_value="${const_value//\'/\\\\\'}"
+            extra_constants_php+="    '${const_name}' => '${const_value}',"$'\n'
         done
     fi
 
@@ -1012,7 +1016,7 @@ PREPEND_PATHS
 \$_ocompose_extras = array(
 ${extra_constants_php});
 foreach (\$_ocompose_extras as \$_oc_name => \$_oc_val) {
-    if (\$_oc_val !== false && !defined(\$_oc_name)) {
+    if (!defined(\$_oc_name)) {
         define(\$_oc_name, \$_oc_val);
     }
 }
