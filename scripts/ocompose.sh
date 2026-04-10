@@ -1662,7 +1662,9 @@ cmd_up() {
         esac
     fi
 
-    [[ "${REDIS_ENABLED:-false}" == "true" ]] && log_verbose "   Redis:      localhost:${REDIS_PORT:-6379}"
+    if [[ "${REDIS_ENABLED:-false}" == "true" ]]; then
+        log_verbose "   Redis:      localhost:${REDIS_PORT:-6379}"
+    fi
 }
 
 cmd_down() {
