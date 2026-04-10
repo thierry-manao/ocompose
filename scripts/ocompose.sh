@@ -257,7 +257,7 @@ wait_for_db_ready() {
 
     echo -e "${RED}✗ Database ($engine) did not become ready in time for '$INSTANCE'.${NC}"
     echo -e "  Check logs with:  docker logs $(db_container_name)"
-    exit 1
+    return 1
 }
 
 ensure_db_exists() {
@@ -291,6 +291,9 @@ grant_db_user_access() {
     local db_user="${DB_USER:-app}"
     local container
     container="$(db_container_name)"
+
+    # Root user already has all privileges — skip
+    [[ "$db_user" == "root" ]] && return 0
 
     if [[ ! "$db_name" =~ ^[A-Za-z0-9_]+$ ]]; then
         echo -e "${RED}✗ DB_DATABASE contains unsupported characters for '$INSTANCE'.${NC}"
@@ -375,7 +378,10 @@ import_db_seed_if_configured() {
         exit 1
     fi
 
-    wait_for_db_ready
+    wait_for_db_ready || {
+        echo -e "${RED}✗ Cannot import seed: database not ready.${NC}"
+        exit 1
+    }
 
     marker_file="$(seed_marker_file)"
     mkdir -p "$(seed_state_dir)"
@@ -1596,9 +1602,12 @@ cmd_up() {
     # Ensure DB + user exist regardless of seed file
     local engine="${DB_ENGINE:-mysql}"
     if [[ "$engine" != "none" ]]; then
-        wait_for_db_ready
-        ensure_db_exists
-        grant_db_user_access
+        if wait_for_db_ready; then
+            ensure_db_exists || echo -e "${YELLOW}⚠  Could not ensure database exists (non-fatal).${NC}"
+            grant_db_user_access || echo -e "${YELLOW}⚠  Could not grant DB user access (non-fatal).${NC}"
+        else
+            echo -e "${YELLOW}⚠  Database not ready yet — skipping DB setup. It may need more time to initialize.${NC}"
+        fi
     fi
 
     import_db_seed_if_configured
