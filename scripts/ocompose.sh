@@ -1025,8 +1025,8 @@ PREPEND_CI_CONFIG
         # If the file exists (from the repo), we inject at the bottom.
         # If it has our marker already, replace the injected block.
         if [[ -f "$ci3_env_config_dir/config.php" ]]; then
-            # Remove previous ocompose block if present
-            sed -i "/$ocompose_marker/,\$d" "$ci3_env_config_dir/config.php"
+            # Remove previous ocompose block if present (use # as sed delimiter to avoid clash with //)
+            sed -i "\#${ocompose_marker}#,\$d" "$ci3_env_config_dir/config.php"
         else
             cat > "$ci3_env_config_dir/config.php" <<'CI3_CONFIG_HEADER'
 <?php
