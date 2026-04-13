@@ -1,2 +1,4 @@
 instances/
 .ocompose-ui*
+db/gtpdb500001.sql
+db/licencesdb.sql
