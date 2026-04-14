@@ -198,7 +198,7 @@ Nginx serves files directly. No backend container.
 ### Database
 
 ```env
-DB_ENGINE=mysql        # mysql | mariadb | postgres | none
+DB_ENGINE=mysql        # mysql | mariadb | postgres | external | none
 DB_VERSION=8.0         # Image tag (e.g. 8.0, 10.11, 16)
 DB_DATABASE=app_db
 DB_USER=app
@@ -217,6 +217,51 @@ DB_ADMIN_PORT=8080
 PGADMIN_EMAIL=admin@local.dev
 PGADMIN_PASSWORD=secret
 ```
+
+#### Connecting to External Databases
+
+To connect your instance to an external database server (e.g., db-docker-server running on the host), set `DB_ENGINE=external` and configure the connection:
+
+```env
+DB_ENGINE=external
+DB_HOST=host.docker.internal    # Special DNS name for host machine
+DB_PORT=23306                   # Host port where DB is exposed
+DB_DATABASE=your_database       # Database name
+DB_USER=root                    # Database user
+DB_PASSWORD=root                # Database password
+```
+
+**Example: Connecting to db-docker-server**
+
+If you have a `db-docker-server` instance running MariaDB on port 23306:
+
+```bash
+# In db-docker-server
+dbserver licences status    # Check it's running on port 23306
+
+# In ocompose instance
+nano instances/myapp/.env
+```
+
+Set:
+
+```env
+DB_ENGINE=external
+DB_HOST=host.docker.internal
+DB_PORT=23306
+DB_ROOT_PASSWORD=root
+DB_DATABASE=licencesdb
+DB_USER=root
+DB_PASSWORD=root
+```
+
+Then start your instance:
+
+```bash
+ocompose myapp up
+```
+
+Your PHP/Node/Python containers will now connect to the external database. phpMyAdmin will also connect to it for database management.
 
 ### Seed Import
 

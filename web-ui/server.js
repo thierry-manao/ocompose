@@ -10,9 +10,10 @@ const execFileAsync = promisify(execFile);
 const PROJECT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const INSTANCES_DIR = path.join(PROJECT_DIR, 'instances');
-const DB_DIR = path.join(PROJECT_DIR, 'db');
 const TEMPLATE_PATH = path.join(PROJECT_DIR, '.env.example');
 const SCRIPT_PATH = path.join(PROJECT_DIR, 'scripts', 'ocompose.sh');
+const DBSERVER_UI_PORT = Number(process.env.DBSERVER_UI_PORT) || 9090;
+const DBSERVER_UI_HOST = process.env.DBSERVER_UI_HOST || 'localhost';
 
 function parsePort(value) {
     if (value == null || value === '') {
@@ -283,22 +284,6 @@ async function listInstanceNames() {
     }
 }
 
-async function listDbFiles() {
-    try {
-        const entries = await fs.readdir(DB_DIR, { withFileTypes: true });
-        return entries
-            .filter((entry) => entry.isFile() && /\.sql(\.gz)?$/i.test(entry.name))
-            .map((entry) => entry.name)
-            .sort((left, right) => left.localeCompare(right));
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            return [];
-        }
-
-        throw error;
-    }
-}
-
 async function getRunningContainers() {
     try {
         const { stdout } = await execFileAsync('docker', ['ps', '--format', '{{.Names}}'], {
@@ -330,7 +315,7 @@ function buildInstanceSummary(instanceName, config, runningContainers, accessHos
     const running = runningContainers.has(`${instanceName}_workspace`);
 
     const vhostUrls = [];
-    if (toBoolean(config.PHP_ENABLED) && config.VHOSTS) {
+    if (config.VHOSTS) {
         const entries = config.VHOSTS.split(',').map(e => e.trim()).filter(Boolean);
         for (const entry of entries) {
             const port = entry.split(':')[0];
@@ -346,7 +331,6 @@ function buildInstanceSummary(instanceName, config, runningContainers, accessHos
         config,
         urls: {
             app: vhostUrls.length > 0 ? vhostUrls : null,
-            phpmyadmin: toBoolean(config.PHPMYADMIN_ENABLED) ? `http://${accessHost}:${config.PHPMYADMIN_PORT}` : null,
             ssh: config.WORKSPACE_SSH_PORT ? `${accessHost}:${config.WORKSPACE_SSH_PORT}` : null,
         },
     };
@@ -557,19 +541,11 @@ function sanitizeConfig(inputConfig) {
         'PYTHON_VERSION',
         'PYTHON_COMMAND',
         'VHOSTS',
-        'DB_ENGINE',
-        'DB_VERSION',
-        'DB_ROOT_PASSWORD',
+        'DB_HOST',
+        'DB_PORT',
         'DB_DATABASE',
         'DB_USER',
         'DB_PASSWORD',
-        'DB_PORT',
-        'DB_SEED_FILE',
-        'DB_RESEED_ON_STARTUP',
-        'DB_ADMIN_ENABLED',
-        'DB_ADMIN_PORT',
-        'PGADMIN_EMAIL',
-        'PGADMIN_PASSWORD',
         'REDIS_ENABLED',
         'REDIS_VERSION',
         'REDIS_PORT',
@@ -704,7 +680,7 @@ async function listInstances(accessHost = 'localhost') {
                 name: instanceName,
                 status: 'invalid',
                 config: {},
-                urls: { app: null, phpmyadmin: null, ssh: null },
+                urls: { app: null, ssh: null },
                 error: error.message,
             });
         }
@@ -803,8 +779,14 @@ async function handleInstanceApi(request, response, url) {
     const accessHost = getRequestHostname(request);
     cleanupConsoleSessions();
 
-    if (request.method === 'GET' && url.pathname === '/api/db-files') {
-        sendJson(response, 200, { files: await listDbFiles() });
+    if (request.method === 'GET' && url.pathname === '/api/dbserver/instances') {
+        try {
+            const resp = await fetch(`http://${DBSERVER_UI_HOST}:${DBSERVER_UI_PORT}/api/instances`);
+            const data = await resp.json();
+            sendJson(response, 200, data);
+        } catch (error) {
+            sendJson(response, 502, { error: `Cannot reach db-docker-server at ${DBSERVER_UI_HOST}:${DBSERVER_UI_PORT}. Is it running?` });
+        }
         return true;
     }
 
@@ -817,7 +799,6 @@ async function handleInstanceApi(request, response, url) {
             const configFiles = [
                 { name: 'nginx/default.conf', path: path.join(instanceDir, 'config', 'nginx', 'default.conf') },
                 { name: 'php/php.ini', path: path.join(instanceDir, 'config', 'php', 'php.ini') },
-                { name: 'mysql/my.cnf', path: path.join(instanceDir, 'config', 'mysql', 'my.cnf') },
                 { name: 'docker-compose.vhosts.yml', path: path.join(instanceDir, 'docker-compose.vhosts.yml') },
                 { name: '.env', path: path.join(instanceDir, '.env') },
             ];

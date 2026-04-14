@@ -18,6 +18,8 @@ services:
       - "${WORKSPACE_SSH_PORT:-2222}:22"
     networks:
       - net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     stdin_open: true
     tty: true
     restart: unless-stopped
@@ -34,17 +36,17 @@ services:
     hostname: ${PROJECT_NAME}-php
     environment:
       PROJECT_NAME: ${PROJECT_NAME}
-      # Generic DB vars
-      DB_ENGINE: ${DB_ENGINE:-mysql}
-      DB_HOST: ${DB_ENGINE:-mysql}
-      DB_DATABASE: ${DB_DATABASE:-app_db}
-      DB_USER: ${DB_USER:-app}
-      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      # External DB connection (db-docker-server via host.docker.internal)
+      DB_HOST: ${DB_HOST:-host.docker.internal}
+      DB_PORT: ${DB_PORT:-23306}
+      DB_DATABASE: ${DB_DATABASE:-}
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
       # Backward-compat aliases (CI3 apps, legacy code)
-      MYSQL_HOST: mysql
-      MYSQL_DATABASE: ${DB_DATABASE:-app_db}
-      MYSQL_USER: ${DB_USER:-app}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_HOST: ${DB_HOST:-host.docker.internal}
+      MYSQL_DATABASE: ${DB_DATABASE:-}
+      MYSQL_USER: ${DB_USER:-root}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-root}
       # CI3 overrides
       CI3_APP_ROOT: ${CI3_APP_ROOT:-}
       CI3_BASE_URL: ${CI3_BASE_URL:-}
@@ -56,6 +58,8 @@ services:
       - ./instances/${PROJECT_NAME}/config/php/php.ini:/etc/php/custom.ini
     networks:
       - net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - workspace
     restart: unless-stopped
@@ -75,21 +79,24 @@ services:
       PROJECT_NAME: ${PROJECT_NAME}
       NODE_ENV: ${NODE_ENV:-development}
       NODE_COMMAND: ${NODE_COMMAND:-node server.js}
-      DB_ENGINE: ${DB_ENGINE:-mysql}
-      DB_HOST: ${DB_ENGINE:-mysql}
-      DB_DATABASE: ${DB_DATABASE:-app_db}
-      DB_USER: ${DB_USER:-app}
-      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      # External DB connection (db-docker-server via host.docker.internal)
+      DB_HOST: ${DB_HOST:-host.docker.internal}
+      DB_PORT: ${DB_PORT:-23306}
+      DB_DATABASE: ${DB_DATABASE:-}
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
       # Backward-compat aliases
-      MYSQL_HOST: mysql
-      MYSQL_DATABASE: ${DB_DATABASE:-app_db}
-      MYSQL_USER: ${DB_USER:-app}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_HOST: ${DB_HOST:-host.docker.internal}
+      MYSQL_DATABASE: ${DB_DATABASE:-}
+      MYSQL_USER: ${DB_USER:-root}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-root}
       REDIS_HOST: redis
     volumes:
       - ./instances/${PROJECT_NAME}/www:/var/www/html
     networks:
       - net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - workspace
     restart: unless-stopped
@@ -107,22 +114,24 @@ services:
     hostname: ${PROJECT_NAME}-python
     environment:
       PROJECT_NAME: ${PROJECT_NAME}
-      PYTHON_COMMAND: ${PYTHON_COMMAND:-python -m http.server 8000}
-      DB_ENGINE: ${DB_ENGINE:-mysql}
-      DB_HOST: ${DB_ENGINE:-mysql}
-      DB_DATABASE: ${DB_DATABASE:-app_db}
-      DB_USER: ${DB_USER:-app}
-      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      # External DB connection (db-docker-server via host.docker.internal)
+      DB_HOST: ${DB_HOST:-host.docker.internal}
+      DB_PORT: ${DB_PORT:-23306}
+      DB_DATABASE: ${DB_DATABASE:-}
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-root}
       # Backward-compat aliases
-      MYSQL_HOST: mysql
-      MYSQL_DATABASE: ${DB_DATABASE:-app_db}
-      MYSQL_USER: ${DB_USER:-app}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_HOST: ${DB_HOST:-host.docker.internal}
+      MYSQL_DATABASE: ${DB_DATABASE:-}
+      MYSQL_USER: ${DB_USER:-root}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-root}
       REDIS_HOST: redis
     volumes:
       - ./instances/${PROJECT_NAME}/www:/var/www/html
     networks:
       - net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - workspace
     restart: unless-stopped
@@ -146,74 +155,6 @@ services:
       - python
       - static
 
-  # ─── MYSQL ───
-  mysql:
-    image: mysql:${DB_VERSION:-8.0}
-    container_name: ${PROJECT_NAME}_mysql
-    hostname: ${PROJECT_NAME}-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${DB_DATABASE:-app_db}
-      MYSQL_USER: ${DB_USER:-app}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./instances/${PROJECT_NAME}/config/mysql/my.cnf:/etc/mysql/conf.d/custom.cnf
-    ports:
-      - "${DB_PORT:-3306}:3306"
-    networks:
-      net:
-        aliases:
-          - db
-    restart: unless-stopped
-    profiles:
-      - mysql
-
-  # ─── MARIADB ───
-  mariadb:
-    image: mariadb:${DB_VERSION:-10.11}
-    container_name: ${PROJECT_NAME}_mariadb
-    hostname: ${PROJECT_NAME}-mariadb
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${DB_DATABASE:-app_db}
-      MYSQL_USER: ${DB_USER:-app}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
-    volumes:
-      - mariadb_data:/var/lib/mysql
-      - ./instances/${PROJECT_NAME}/config/mariadb/my.cnf:/etc/mysql/conf.d/custom.cnf
-    ports:
-      - "${DB_PORT:-3306}:3306"
-    networks:
-      net:
-        aliases:
-          - db
-          - mysql
-    restart: unless-stopped
-    profiles:
-      - mariadb
-
-  # ─── POSTGRESQL ───
-  postgres:
-    image: postgres:${DB_VERSION:-16}
-    container_name: ${PROJECT_NAME}_postgres
-    hostname: ${PROJECT_NAME}-postgres
-    environment:
-      POSTGRES_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-      POSTGRES_DB: ${DB_DATABASE:-app_db}
-      POSTGRES_USER: ${DB_USER:-app}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${DB_PORT:-5432}:5432"
-    networks:
-      net:
-        aliases:
-          - db
-    restart: unless-stopped
-    profiles:
-      - postgres
-
   # ─── REDIS ───
   redis:
     image: redis:${REDIS_VERSION:-7}-alpine
@@ -229,54 +170,12 @@ services:
     profiles:
       - redis
 
-  # ─── PHPMYADMIN (mysql/mariadb) ───
-  phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: ${PROJECT_NAME}_phpmyadmin
-    hostname: ${PROJECT_NAME}-phpmyadmin
-    environment:
-      PMA_HOST: ${DB_ENGINE:-mysql}
-      PMA_PORT: 3306
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-    ports:
-      - "${DB_ADMIN_PORT:-8080}:80"
-    networks:
-      - net
-    restart: unless-stopped
-    profiles:
-      - phpmyadmin
-
-  # ─── PGADMIN (postgres) ───
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: ${PROJECT_NAME}_pgadmin
-    hostname: ${PROJECT_NAME}-pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@local.dev}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-secret}
-    ports:
-      - "${DB_ADMIN_PORT:-5050}:80"
-    networks:
-      - net
-    restart: unless-stopped
-    profiles:
-      - pgadmin
-
 networks:
   net:
     name: ${PROJECT_NAME}_net
     driver: bridge
 
 volumes:
-  mysql_data:
-    name: ${PROJECT_NAME}_mysql_data
-    driver: local
-  mariadb_data:
-    name: ${PROJECT_NAME}_mariadb_data
-    driver: local
-  postgres_data:
-    name: ${PROJECT_NAME}_postgres_data
-    driver: local
   redis_data:
     name: ${PROJECT_NAME}_redis_data
     driver: local

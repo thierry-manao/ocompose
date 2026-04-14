@@ -10,6 +10,44 @@ UI_AUTH_FILE="$PROJECT_DIR/.ocompose-ui.auth"
 CLI_WRAPPER_FILE="$PROJECT_DIR/ocompose"
 CLI_WRAPPER_CMD_FILE="$PROJECT_DIR/ocompose.cmd"
 
+# ── Docker: detect if native docker is available, otherwise use WSL ──
+USE_WSL="false"
+if ! command -v docker >/dev/null 2>&1; then
+    if command -v wsl >/dev/null 2>&1 || command -v wsl.exe >/dev/null 2>&1; then
+        USE_WSL="true"
+    fi
+fi
+
+# Wrapper so every `docker …` call in this script goes through WSL when needed.
+# MSYS_NO_PATHCONV prevents Git-Bash/MINGW from mangling paths passed to wsl.exe.
+if [[ "$USE_WSL" == "true" ]]; then
+    docker() { MSYS_NO_PATHCONV=1 wsl docker "$@"; }
+    export -f docker 2>/dev/null || true
+fi
+
+# Convert a MINGW/Git-Bash path to a WSL-compatible path.
+# /d/works/foo → /mnt/d/works/foo, /c/Users/… → /mnt/c/Users/…
+to_wsl_path() {
+    local p="$1"
+    if [[ "$p" =~ ^/([a-zA-Z])/ ]]; then
+        echo "/mnt/${BASH_REMATCH[1],,}${p:2}"
+    elif [[ "$p" =~ ^([A-Za-z]):[\\/] ]]; then
+        local drive="${p:0:1}"
+        echo "/mnt/${drive,,}${p:2}" | sed 's|\\|/|g'
+    else
+        echo "$p"
+    fi
+}
+
+# Resolve a file path for docker: passthrough on native, convert on WSL.
+docker_path() {
+    if [[ "$USE_WSL" == "true" ]]; then
+        to_wsl_path "$1"
+    else
+        echo "$1"
+    fi
+}
+
 # ── Quiet mode: suppress verbose output when not on a terminal (web UI, CI) ──
 if [[ -t 1 ]]; then
     OCOMPOSE_QUIET="false"
@@ -45,7 +83,8 @@ normalize_env_file() {
     local env_file="$INSTANCES_DIR/$INSTANCE/.env"
     local normalized_env_file
 
-    normalized_env_file="$(mktemp)"
+    # Use project dir for temp file so the path is clean for WSL docker
+    normalized_env_file="$PROJECT_DIR/.env.normalized.$$"
     # Strip CRLF, then quote any unquoted values that contain spaces so bash
     # source doesn't try to execute them as commands.
     sed 's/\r$//' "$env_file" | while IFS= read -r line; do
@@ -160,34 +199,25 @@ compute_file_signature() {
 
 # ── Backward-compatibility: map legacy vars to new generic names ──
 resolve_legacy_vars() {
-    # Old PHP_ENABLED / MYSQL_ENABLED / PHPMYADMIN_ENABLED → new generic vars
+    # Old PHP_ENABLED → APP_RUNTIME
     if [[ -n "${PHP_ENABLED:-}" && -z "${APP_RUNTIME:-}" ]]; then
         [[ "${PHP_ENABLED}" == "true" ]] && export APP_RUNTIME="php" || export APP_RUNTIME="none"
     fi
-    if [[ -n "${MYSQL_ENABLED:-}" && -z "${DB_ENGINE:-}" ]]; then
-        [[ "${MYSQL_ENABLED}" == "true" ]] && export DB_ENGINE="mysql" || export DB_ENGINE="none"
-    fi
-    if [[ -n "${PHPMYADMIN_ENABLED:-}" && -z "${DB_ADMIN_ENABLED:-}" ]]; then
-        export DB_ADMIN_ENABLED="${PHPMYADMIN_ENABLED}"
-    fi
 
     # Map old MYSQL_* vars to DB_* if the new ones are missing
-    [[ -n "${MYSQL_VERSION:-}" && -z "${DB_VERSION:-}" ]]        && export DB_VERSION="${MYSQL_VERSION}"
-    [[ -n "${MYSQL_ROOT_PASSWORD:-}" && -z "${DB_ROOT_PASSWORD:-}" ]] && export DB_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD}"
     [[ -n "${MYSQL_DATABASE:-}" && -z "${DB_DATABASE:-}" ]]      && export DB_DATABASE="${MYSQL_DATABASE}"
     [[ -n "${MYSQL_USER:-}" && -z "${DB_USER:-}" ]]              && export DB_USER="${MYSQL_USER}"
     [[ -n "${MYSQL_PASSWORD:-}" && -z "${DB_PASSWORD:-}" ]]      && export DB_PASSWORD="${MYSQL_PASSWORD}"
     [[ -n "${MYSQL_PORT:-}" && -z "${DB_PORT:-}" ]]              && export DB_PORT="${MYSQL_PORT}"
-    [[ -n "${MYSQL_SEED_FILE:-}" && -z "${DB_SEED_FILE:-}" ]]    && export DB_SEED_FILE="${MYSQL_SEED_FILE}"
-    [[ -n "${MYSQL_RESEED_ON_STARTUP:-}" && -z "${DB_RESEED_ON_STARTUP:-}" ]] && export DB_RESEED_ON_STARTUP="${MYSQL_RESEED_ON_STARTUP}"
-    [[ -n "${PHPMYADMIN_PORT:-}" && -z "${DB_ADMIN_PORT:-}" ]]   && export DB_ADMIN_PORT="${PHPMYADMIN_PORT}"
 
     # Ensure backward-compat aliases exist so CI3 prepend and docker-compose work
-    export MYSQL_HOST="${DB_ENGINE:-mysql}"
-    export MYSQL_DATABASE="${DB_DATABASE:-app_db}"
-    export MYSQL_USER="${DB_USER:-app}"
-    export MYSQL_PASSWORD="${DB_PASSWORD:-}"
-    export MYSQL_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-root}"
+    # DB is always external (db-docker-server via host.docker.internal)
+    export DB_HOST="${DB_HOST:-host.docker.internal}"
+    export DB_PORT="${DB_PORT:-23306}"
+    export MYSQL_HOST="${DB_HOST:-host.docker.internal}"
+    export MYSQL_DATABASE="${DB_DATABASE:-}"
+    export MYSQL_USER="${DB_USER:-root}"
+    export MYSQL_PASSWORD="${DB_PASSWORD:-root}"
 }
 
 # ── Validate DB version is pullable by modern Docker/containerd ──
@@ -397,7 +427,7 @@ import_db_seed_if_configured() {
     local container
     container="$(db_container_name)"
 
-    [[ "$engine" != "none" ]] || return 0
+    [[ "$engine" != "none" && "$engine" != "external" ]] || return 0
     seed_path="$(resolve_db_seed_file)"
     [[ -n "$seed_path" ]] || return 0
 
@@ -1338,7 +1368,7 @@ ensure_instance_files() {
     local instance_dir="$INSTANCES_DIR/$INSTANCE"
 
     mkdir -p "$instance_dir/www"
-    mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql" "$instance_dir/config/mariadb"
+    mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php"
     mkdir -p "$instance_dir/config/ssh"
     mkdir -p "$instance_dir/seed-state"
 
@@ -1348,8 +1378,6 @@ ensure_instance_files() {
     generate_vhosts_config
 
     copy_if_missing "$PROJECT_DIR/config/php/php.ini" "$instance_dir/config/php/php.ini"
-    copy_if_missing "$PROJECT_DIR/config/mysql/my.cnf" "$instance_dir/config/mysql/my.cnf"
-    copy_if_missing "$PROJECT_DIR/config/mariadb/my.cnf" "$instance_dir/config/mariadb/my.cnf"
 
     # Ensure workspace has proper permissions
     chmod -R 777 "$instance_dir/www" 2>/dev/null || true
@@ -1399,15 +1427,14 @@ load_instance_env() {
     export PROJECT_NAME="$INSTANCE"
 
     resolve_legacy_vars
-    validate_db_version
     ensure_instance_files
 }
 
 # ── Build active profiles ──
+# DB is always external (db-docker-server) — no local DB profiles needed.
 get_profiles() {
     local profiles=""
     local runtime="${APP_RUNTIME:-php}"
-    local engine="${DB_ENGINE:-mysql}"
 
     # App runtime
     case "$runtime" in
@@ -1416,21 +1443,6 @@ get_profiles() {
         python) profiles="$profiles --profile python" ;;
         static) profiles="$profiles --profile static" ;;
     esac
-
-    # Database engine
-    case "$engine" in
-        mysql)   profiles="$profiles --profile mysql" ;;
-        mariadb) profiles="$profiles --profile mariadb" ;;
-        postgres) profiles="$profiles --profile postgres" ;;
-    esac
-
-    # Database admin
-    if [[ "${DB_ADMIN_ENABLED:-false}" == "true" ]]; then
-        case "$engine" in
-            mysql|mariadb) profiles="$profiles --profile phpmyadmin" ;;
-            postgres)      profiles="$profiles --profile pgadmin" ;;
-        esac
-    fi
 
     # Redis
     [[ "${REDIS_ENABLED:-false}" == "true" ]] && profiles="$profiles --profile redis"
@@ -1446,23 +1458,26 @@ compose_cmd() {
 
     normalized_env_file="$(normalize_env_file)"
 
-    local compose_files=(-f "$PROJECT_DIR/docker-compose.yml")
+    local compose_files=(-f "$(docker_path "$PROJECT_DIR/docker-compose.yml")")
     if [[ -f "$vhosts_override" ]]; then
-        compose_files+=(-f "$vhosts_override")
+        compose_files+=(-f "$(docker_path "$vhosts_override")")
     fi
+
+    local docker_env_file
+    docker_env_file="$(docker_path "$normalized_env_file")"
 
     # In quiet mode (web UI), suppress Docker build/pull progress noise
     if [[ "$OCOMPOSE_QUIET" == "true" ]]; then
         docker compose \
             "${compose_files[@]}" \
-            --env-file "$normalized_env_file" \
+            --env-file "$docker_env_file" \
             -p "$INSTANCE" \
             $profiles \
             "$@" > /dev/null 2>&1
     else
         docker compose \
             "${compose_files[@]}" \
-            --env-file "$normalized_env_file" \
+            --env-file "$docker_env_file" \
             -p "$INSTANCE" \
             $profiles \
             "$@"
@@ -1492,7 +1507,7 @@ cmd_init() {
     fi
 
     mkdir -p "$instance_dir/www"
-    mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php" "$instance_dir/config/mysql" "$instance_dir/config/mariadb"
+    mkdir -p "$instance_dir/config/nginx" "$instance_dir/config/php"
     mkdir -p "$instance_dir/config/ssh"
     mkdir -p "$instance_dir/seed-state"
 
@@ -1507,8 +1522,6 @@ cmd_init() {
 
     sed -i.bak \
         -e "s/^VHOSTS=.*/VHOSTS=$(( 8000 + offset )):/" \
-        -e "s/^DB_PORT=.*/DB_PORT=$(( 3306 + offset ))/" \
-        -e "s/^DB_ADMIN_PORT=.*/DB_ADMIN_PORT=$(( 8080 + offset ))/" \
         -e "s/^WORKSPACE_SSH_PORT=.*/WORKSPACE_SSH_PORT=$(( 2222 + offset ))/" \
         -e "s/^REDIS_PORT=.*/REDIS_PORT=$(( 6379 + offset ))/" \
         "$instance_dir/.env"
@@ -1676,18 +1689,9 @@ cmd_up() {
     log_verbose "${CYAN}🐳 Starting instance '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
     compose_cmd up -d --build "$@"
 
-    # Ensure DB + user exist regardless of seed file
-    local engine="${DB_ENGINE:-mysql}"
-    if [[ "$engine" != "none" ]]; then
-        if wait_for_db_ready; then
-            ensure_db_exists || log_verbose "${YELLOW}⚠  Could not ensure database exists (non-fatal).${NC}"
-            grant_db_user_access || log_verbose "${YELLOW}⚠  Could not grant DB user access (non-fatal).${NC}"
-        else
-            log_verbose "${YELLOW}⚠  Database not ready yet — skipping DB setup. It may need more time to initialize.${NC}"
-        fi
-    fi
+    # DB is external (db-docker-server) — no local DB setup needed.
+    # Containers connect via host.docker.internal:${DB_PORT}
 
-    import_db_seed_if_configured
     echo ""
     echo -e "${GREEN}✅ Instance '$INSTANCE' is running!${NC}"
     log_verbose "   Shell:      ./scripts/ocompose.sh $INSTANCE shell"
@@ -1704,16 +1708,8 @@ cmd_up() {
         done <<< "$RESOLVED_VHOSTS"
     fi
 
-    local engine="${DB_ENGINE:-mysql}"
-    if [[ "$engine" != "none" ]]; then
-        log_verbose "   Database:   ${engine} @ localhost:${DB_PORT:-3306}"
-    fi
-
-    if [[ "${DB_ADMIN_ENABLED:-false}" == "true" ]]; then
-        case "$engine" in
-            mysql|mariadb) log_verbose "   phpMyAdmin: http://localhost:${DB_ADMIN_PORT:-8080}" ;;
-            postgres)      log_verbose "   pgAdmin:    http://localhost:${DB_ADMIN_PORT:-5050}" ;;
-        esac
+    if [[ -n "${DB_HOST:-}" && -n "${DB_PORT:-}" ]]; then
+        log_verbose "   Database:   ${DB_HOST}:${DB_PORT} (external db-docker-server)"
     fi
 
     if [[ "${REDIS_ENABLED:-false}" == "true" ]]; then
@@ -1826,7 +1822,7 @@ cmd_list() {
         return
     fi
 
-    printf "   ${BOLD}%-20s %-12s %-10s %-10s %-18s %-10s %-10s %-10s${NC}\n" "INSTANCE" "STATUS" "RUNTIME" "DB" "APP" "DB PORT" "ADMIN" "SSH"
+    printf "   ${BOLD}%-20s %-12s %-10s %-18s %-10s %-10s${NC}\n" "INSTANCE" "STATUS" "RUNTIME" "APP" "DB PORT" "SSH"
     for dir in "$INSTANCES_DIR"/*/; do
         local name
         name=$(basename "$dir")
@@ -1839,23 +1835,14 @@ cmd_list() {
             status="${RED}stopped${NC}"
         fi
 
-        local runtime="-" db_engine="-" app_ports="-" db_port="-" admin_port="-" ssh_port="-"
+        local runtime="-" app_ports="-" db_port="-" ssh_port="-"
         if [[ -f "$env_file" ]]; then
             # Runtime
             runtime=$(grep "^APP_RUNTIME=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
             if [[ -z "$runtime" ]]; then
-                # Legacy fallback
                 local php_enabled
                 php_enabled=$(grep "^PHP_ENABLED=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
                 [[ "$php_enabled" == "true" ]] && runtime="php" || runtime="-"
-            fi
-
-            # DB engine
-            db_engine=$(grep "^DB_ENGINE=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
-            if [[ -z "$db_engine" ]]; then
-                local mysql_enabled
-                mysql_enabled=$(grep "^MYSQL_ENABLED=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
-                [[ "$mysql_enabled" == "true" ]] && db_engine="mysql" || db_engine="-"
             fi
 
             # Vhosts
@@ -1876,14 +1863,12 @@ cmd_list() {
                 [[ -z "$app_ports" ]] && app_ports="-"
             fi
 
-            db_port=$(grep "^DB_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
-            [[ -z "$db_port" ]] && db_port=$(grep "^MYSQL_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
-            admin_port=$(grep "^DB_ADMIN_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "")
-            [[ -z "$admin_port" ]] && admin_port=$(grep "^PHPMYADMIN_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
+            db_port=$(grep "^DB_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
+            [[ -z "$db_port" ]] && db_port="-"
             ssh_port=$(grep "^WORKSPACE_SSH_PORT=" "$env_file" 2>/dev/null | cut -d= -f2 || echo "-")
         fi
 
-        printf "   %-20s %-22b %-10s %-10s %-18s %-10s %-10s %-10s\n" "$name" "$status" "$runtime" "$db_engine" "$app_ports" "$db_port" "$admin_port" "$ssh_port"
+        printf "   %-20s %-22b %-10s %-18s %-10s %-10s\n" "$name" "$status" "$runtime" "$app_ports" "$db_port" "$ssh_port"
     done
 }
 

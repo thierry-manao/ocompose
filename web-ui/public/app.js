@@ -1,6 +1,5 @@
 const state = {
     instances: [],
-    dbFiles: [],
     selectedInstanceName: null,
     activeView: 'dashboard',
     settingsTab: 'stack',
@@ -19,7 +18,7 @@ const instanceSubtitle = document.querySelector('#instance-subtitle');
 const statusChip = document.querySelector('#status-chip');
 const messageBar = document.querySelector('#message-bar');
 const heroAppPort = document.querySelector('#hero-app-port');
-const heroMysqlPort = document.querySelector('#hero-mysql-port');
+const heroDbPort = document.querySelector('#hero-db-port');
 const refreshButton = document.querySelector('#refresh-button');
 const logoutButton = document.querySelector('#logout-button');
 const actionButtons = Array.from(document.querySelectorAll('[data-action]'));
@@ -59,19 +58,11 @@ const fieldNames = [
     'PYTHON_VERSION',
     'PYTHON_COMMAND',
     'VHOSTS',
-    'DB_ENGINE',
-    'DB_VERSION',
-    'DB_ROOT_PASSWORD',
+    'DB_HOST',
+    'DB_PORT',
     'DB_DATABASE',
     'DB_USER',
     'DB_PASSWORD',
-    'DB_PORT',
-    'DB_SEED_FILE',
-    'DB_RESEED_ON_STARTUP',
-    'DB_ADMIN_ENABLED',
-    'DB_ADMIN_PORT',
-    'PGADMIN_EMAIL',
-    'PGADMIN_PASSWORD',
     'REDIS_ENABLED',
     'REDIS_VERSION',
     'REDIS_PORT',
@@ -84,31 +75,181 @@ const fieldNames = [
     'CI3_AUTH_URL',
 ];
 
-function renderDbFileOptions(selectedValue = '') {
-    const element = form.elements.namedItem('DB_SEED_FILE');
-    if (!element) {
+// ── Runtime field visibility ──
+
+const runtimeSelect = form.elements.namedItem('APP_RUNTIME');
+const runtimeFields = Array.from(document.querySelectorAll('.runtime-field'));
+
+function updateRuntimeFields(runtime) {
+    runtimeFields.forEach((field) => {
+        const group = field.dataset.runtimeGroup;
+        field.style.display = group === runtime ? '' : 'none';
+    });
+}
+
+if (runtimeSelect) {
+    runtimeSelect.addEventListener('change', () => {
+        updateRuntimeFields(runtimeSelect.value);
+    });
+}
+
+// ── db-docker-server integration ──
+
+const dbserverState = {
+    instances: [],
+    connected: false,
+};
+
+const dbserverInstanceSelect = document.querySelector('#dbserver-instance-select');
+const dbserverDatabaseSelect = document.querySelector('#dbserver-database-select');
+const dbserverStatusIndicator = document.querySelector('#dbserver-status-indicator');
+const dbserverStatusText = document.querySelector('#dbserver-status-text');
+const dbserverRefreshButton = document.querySelector('#dbserver-refresh');
+const dbserverInstancesDetail = document.querySelector('#dbserver-instances-detail');
+const dbserverInstancesList = document.querySelector('#dbserver-instances-list');
+
+async function loadDbserverInstances() {
+    try {
+        const payload = await apiRequest('/api/dbserver/instances');
+        dbserverState.instances = Array.isArray(payload.instances) ? payload.instances : [];
+        dbserverState.connected = true;
+        renderDbserverStatus();
+        renderDbserverInstanceSelect();
+        renderDbserverInstancesDetail();
+    } catch (error) {
+        dbserverState.instances = [];
+        dbserverState.connected = false;
+        renderDbserverStatus();
+        renderDbserverInstanceSelect();
+        renderDbserverInstancesDetail();
+    }
+}
+
+function renderDbserverStatus() {
+    if (dbserverState.connected && dbserverState.instances.length > 0) {
+        const running = dbserverState.instances.filter((i) => i.running);
+        dbserverStatusIndicator.textContent = running.length > 0 ? 'connecté' : 'arrêté';
+        dbserverStatusIndicator.className = `status-chip ${running.length > 0 ? 'running' : 'stopped'}`;
+        dbserverStatusText.textContent = `${dbserverState.instances.length} instance(s), ${running.length} active(s)`;
+    } else if (dbserverState.connected) {
+        dbserverStatusIndicator.textContent = 'vide';
+        dbserverStatusIndicator.className = 'status-chip idle';
+        dbserverStatusText.textContent = 'db-docker-server connecté mais aucune instance trouvée.';
+    } else {
+        dbserverStatusIndicator.textContent = 'hors ligne';
+        dbserverStatusIndicator.className = 'status-chip stopped';
+        dbserverStatusText.textContent = 'Impossible de joindre db-docker-server. Est-il démarré ?';
+    }
+}
+
+function renderDbserverInstanceSelect() {
+    if (!dbserverInstanceSelect) return;
+
+    const currentDbPort = form.elements.namedItem('DB_PORT')?.value || '';
+
+    if (!dbserverState.connected || dbserverState.instances.length === 0) {
+        dbserverInstanceSelect.innerHTML = '<option value="">Aucune instance disponible</option>';
+        dbserverDatabaseSelect.innerHTML = '<option value="">-</option>';
         return;
     }
 
-    const options = ['<option value="">Pas d\'import de dump</option>'];
-    state.dbFiles.forEach((fileName) => {
-        options.push(`<option value="${fileName}">${fileName}</option>`);
+    const options = ['<option value="">Sélectionnez une instance</option>'];
+    dbserverState.instances.forEach((inst) => {
+        const port = inst.config?.DB_PORT || '?';
+        const engine = inst.config?.DB_ENGINE || '?';
+        const statusLabel = inst.running ? '●' : '○';
+        const selected = currentDbPort && port === currentDbPort ? ' selected' : '';
+        options.push(`<option value="${inst.name}" data-port="${port}" data-engine="${engine}"${selected}>${statusLabel} ${inst.name} (${engine} :${port})</option>`);
     });
+    dbserverInstanceSelect.innerHTML = options.join('');
 
-    if (selectedValue && !state.dbFiles.includes(selectedValue)) {
-        options.push(`<option value="${selectedValue}">${selectedValue} (manquant)</option>`);
+    // If a current port matches, auto-select and populate databases
+    if (dbserverInstanceSelect.value) {
+        onDbserverInstanceSelected(dbserverInstanceSelect.value);
     }
-
-    element.innerHTML = options.join('');
-    element.value = selectedValue || '';
 }
 
-async function loadDbFiles() {
-    const payload = await apiRequest('/api/db-files');
-    state.dbFiles = Array.isArray(payload.files) ? payload.files : [];
+function onDbserverInstanceSelected(instanceName) {
+    const inst = dbserverState.instances.find((i) => i.name === instanceName);
+    if (!inst) {
+        dbserverDatabaseSelect.innerHTML = '<option value="">Sélectionnez d\'abord une instance</option>';
+        return;
+    }
 
-    const currentValue = form.elements.namedItem('DB_SEED_FILE')?.value || '';
-    renderDbFileOptions(currentValue);
+    // Update port field to match selected instance
+    const portField = form.elements.namedItem('DB_PORT');
+    if (portField && inst.config?.DB_PORT) {
+        portField.value = inst.config.DB_PORT;
+    }
+
+    // Populate databases from seed history
+    const currentDb = form.elements.namedItem('DB_DATABASE')?.value || '';
+    const databases = new Set();
+    if (inst.seedHistory) {
+        inst.seedHistory.forEach((entry) => {
+            if (entry.database) databases.add(entry.database);
+        });
+    }
+    if (inst.config?.DB_DATABASE) {
+        databases.add(inst.config.DB_DATABASE);
+    }
+
+    const dbOptions = ['<option value="">Sélectionnez une base de données</option>'];
+    databases.forEach((db) => {
+        const selected = db === currentDb ? ' selected' : '';
+        dbOptions.push(`<option value="${db}"${selected}>${db}</option>`);
+    });
+    // Allow custom entry
+    if (currentDb && !databases.has(currentDb)) {
+        dbOptions.push(`<option value="${currentDb}" selected>${currentDb} (personnalisé)</option>`);
+    }
+    dbserverDatabaseSelect.innerHTML = dbOptions.join('');
+}
+
+function renderDbserverInstancesDetail() {
+    if (!dbserverState.connected || dbserverState.instances.length === 0) {
+        dbserverInstancesDetail.style.display = 'none';
+        return;
+    }
+
+    dbserverInstancesDetail.style.display = 'block';
+    dbserverInstancesList.innerHTML = dbserverState.instances.map((inst) => {
+        const engine = inst.config?.DB_ENGINE || '?';
+        const port = inst.config?.DB_PORT || '?';
+        const dbs = inst.seedHistory ? [...new Set(inst.seedHistory.map((s) => s.database).filter(Boolean))].join(', ') : '-';
+        const statusClass = inst.running ? 'running' : 'stopped';
+        return `
+            <div class="col-md-6">
+                <div class="card-shell p-3">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <strong>${inst.name}</strong>
+                        <span class="status-chip ${statusClass}">${inst.running ? 'actif' : 'arrêté'}</span>
+                    </div>
+                    <small class="text-secondary d-block">Moteur: ${engine} | Port: ${port}</small>
+                    <small class="text-secondary d-block">Bases: ${dbs || 'aucune'}</small>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+if (dbserverInstanceSelect) {
+    dbserverInstanceSelect.addEventListener('change', (event) => {
+        onDbserverInstanceSelected(event.target.value);
+    });
+}
+
+if (dbserverDatabaseSelect) {
+    dbserverDatabaseSelect.addEventListener('change', (event) => {
+        const dbField = form.elements.namedItem('DB_DATABASE');
+        if (dbField) dbField.value = event.target.value;
+    });
+}
+
+if (dbserverRefreshButton) {
+    dbserverRefreshButton.addEventListener('click', () => {
+        loadDbserverInstances();
+    });
 }
 
 function setMessage(text, isError = false) {
@@ -142,6 +283,10 @@ function setSettingsTab(tabName) {
     settingsTabPanels.forEach((panel) => {
         panel.classList.toggle('is-active', panel.dataset.settingsTabPanel === tabName);
     });
+
+    if (tabName === 'database') {
+        loadDbserverInstances();
+    }
 }
 
 function setActiveView(viewName) {
@@ -329,7 +474,7 @@ function parseVhostUrls(instance) {
 
 function updateEndpoints(instance) {
     heroAppPort.textContent = instance?.config?.VHOSTS || '-';
-    heroMysqlPort.textContent = instance?.config?.MYSQL_PORT || '-';
+    heroDbPort.textContent = instance?.config?.DB_PORT || '-';
 }
 
 function escapeHtml(text) {
@@ -529,6 +674,7 @@ function fillForm(instance) {
         form.reset();
         setFormEnabled(false);
         updateEndpoints(null);
+        updateRuntimeFields('php');
         instanceTitle.textContent = 'Sélectionnez une instance';
         instanceSubtitle.textContent = 'Créez ou sélectionnez une instance pour déverrouiller la configuration. Jusque-là, l\'\u00e9diteur reste intentionnellement verrouillé.';
         statusChip.textContent = 'inactif';
@@ -552,11 +698,6 @@ function fillForm(instance) {
             return;
         }
 
-        if (fieldName === 'DB_SEED_FILE') {
-            renderDbFileOptions(instance.config[fieldName] || '');
-            return;
-        }
-
         element.value = instance.config[fieldName] || '';
     });
 
@@ -565,6 +706,7 @@ function fillForm(instance) {
     statusChip.textContent = instance.status;
     statusChip.className = `status-chip ${instance.status}`;
     updateEndpoints(instance);
+    updateRuntimeFields(instance.config?.APP_RUNTIME || 'php');
     updateConsoleState(instance);
     if (state.activeView === 'files') {
         loadInstanceFiles();
@@ -586,7 +728,6 @@ function renderInstances() {
 
     state.instances.forEach((instance) => {
         const appUrls = parseVhostUrls(instance);
-        const pmaUrl = buildHttpAccessUrl(instance?.config?.PHPMYADMIN_PORT) || instance?.urls?.phpmyadmin || null;
 
         const card = document.createElement('article');
         card.className = `dashboard-instance-card${instance.name === state.selectedInstanceName ? ' active' : ''}`;
@@ -605,7 +746,7 @@ function renderInstances() {
             </div>
             <div class="dashboard-instance-card__meta">
                 <span><i class="bi bi-globe2"></i> App ${instance.config.VHOSTS || '-'}</span>
-                <span><i class="bi bi-database"></i> MySQL ${instance.config.MYSQL_PORT || '-'}</span>
+                <span><i class="bi bi-database"></i> DB :${instance.config.DB_PORT || '-'}</span>
             </div>
             <div class="dashboard-instance-card__actions">
                 <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-select="${instance.name}">Sélectionner</button>
@@ -616,7 +757,6 @@ function renderInstances() {
             </div>
             <div class="dashboard-instance-card__footer">
                 ${appLinks}
-                ${pmaUrl ? `<a class="btn btn-link p-0 dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">Ouvrir phpMyAdmin</a>` : ''}
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Ouvrir les paramètres</button>
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="shell" data-dashboard-instance="${instance.name}">Ouvrir la console</button>
             </div>
@@ -676,7 +816,6 @@ function renderDashboardInstances() {
 
     state.instances.forEach((instance) => {
         const appUrls = parseVhostUrls(instance);
-        const pmaUrl = buildHttpAccessUrl(instance?.config?.PHPMYADMIN_PORT) || instance?.urls?.phpmyadmin || null;
 
         const card = document.createElement('article');
         card.className = `dashboard-instance-card${instance.name === state.selectedInstanceName ? ' active' : ''}`;
@@ -695,7 +834,7 @@ function renderDashboardInstances() {
             </div>
             <div class="dashboard-instance-card__meta">
                 <span><i class="bi bi-globe2"></i> App ${instance.config.VHOSTS || '-'}</span>
-                <span><i class="bi bi-database"></i> MySQL ${instance.config.MYSQL_PORT || '-'}</span>
+                <span><i class="bi bi-database"></i> DB :${instance.config.DB_PORT || '-'}</span>
             </div>
             <div class="dashboard-instance-card__actions">
                 <button class="btn btn-sm btn-outline-dark" type="button" data-dashboard-select="${instance.name}">Sélectionner</button>
@@ -706,7 +845,6 @@ function renderDashboardInstances() {
             </div>
             <div class="dashboard-instance-card__footer">
                 ${appLinks}
-                ${pmaUrl ? `<a class="btn btn-link p-0 dashboard-link-button" href="${pmaUrl}" target="_blank" rel="noreferrer">Ouvrir phpMyAdmin</a>` : ''}
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="settings" data-dashboard-instance="${instance.name}">Ouvrir les paramètres</button>
                 <button class="btn btn-link p-0 dashboard-link-button" type="button" data-dashboard-view="shell" data-dashboard-instance="${instance.name}">Ouvrir la console</button>
             </div>
@@ -966,7 +1104,7 @@ logoutButton.addEventListener('click', async () => {
         setConsoleEnabled(false);
         setConsoleStatus('session: hors ligne');
         setSettingsTab(state.settingsTab);
-        await loadDbFiles();
+        await loadDbserverInstances();
         await refreshInstances();
         setActiveView('dashboard');
         setMessage(state.instances.length ? 'Sélectionnez une instance pour déverrouiller l\'\u00e9dition.' : 'Créez votre première instance pour déverrouiller l\'\u00e9diteur.');
