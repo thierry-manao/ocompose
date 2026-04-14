@@ -398,6 +398,11 @@
                                                 <label class="form-label label-caps">Mot de passe</label>
                                                 <input class="form-control" type="text" name="DB_PASSWORD" value="root">
                                             </div>
+                                            <div class="col-12">
+                                                <label class="form-label label-caps">Réseau externe DB (optionnel)</label>
+                                                <input class="form-control" type="text" name="DB_EXTERNAL_NETWORK" placeholder="p.ex. dbserver_licences_default">
+                                                <div class="form-text mt-1">Si <code>DB_HOST</code> est un nom de conteneur, spécifiez le réseau Docker pour y accéder (p.ex. <code>dbserver_licences_default</code>).</div>
+                                            </div>
                                             <div class="col-12 mt-3">
                                                 <button id="test-db-connection" class="btn btn-outline-dark btn-sm rounded-pill" type="button">
                                                     <i class="bi bi-plug me-1"></i>Tester la connexion

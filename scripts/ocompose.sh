@@ -1808,6 +1808,33 @@ cmd_up() {
     log_verbose "${CYAN}🐳 Starting instance '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
     compose_cmd up -d --build "$@"
 
+    # Connect to external database network if configured
+    if [[ -n "${DB_EXTERNAL_NETWORK:-}" ]]; then
+        local php_container="${PROJECT_NAME}_php"
+        local node_container="${PROJECT_NAME}_node"
+        local python_container="${PROJECT_NAME}_python"
+
+        # Try to connect PHP container if it exists
+        if docker ps -q -f name="^${php_container}\$" >/dev/null 2>&1; then
+            if ! docker network inspect "$DB_EXTERNAL_NETWORK" >/dev/null 2>&1; then
+                log_verbose "${YELLOW}⚠  External network '$DB_EXTERNAL_NETWORK' not found. Skipping.${NC}"
+            else
+                docker network connect "$DB_EXTERNAL_NETWORK" "$php_container" 2>/dev/null || true
+                log_verbose "   ✓ Connected to external network: $DB_EXTERNAL_NETWORK"
+            fi
+        fi
+
+        # Try to connect Node container if it exists
+        if docker ps -q -f name="^${node_container}\$" >/dev/null 2>&1; then
+            docker network connect "$DB_EXTERNAL_NETWORK" "$node_container" 2>/dev/null || true
+        fi
+
+        # Try to connect Python container if it exists
+        if docker ps -q -f name="^${python_container}\$" >/dev/null 2>&1; then
+            docker network connect "$DB_EXTERNAL_NETWORK" "$python_container" 2>/dev/null || true
+        fi
+    fi
+
     # DB is external (db-docker-server) — no local DB setup needed.
     # Containers connect via host.docker.internal:${DB_PORT}
 

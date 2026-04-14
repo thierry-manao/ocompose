@@ -587,6 +587,7 @@ function sanitizeConfig(inputConfig) {
         'DB_DATABASE',
         'DB_USER',
         'DB_PASSWORD',
+        'DB_EXTERNAL_NETWORK',
         'REDIS_ENABLED',
         'REDIS_VERSION',
         'REDIS_PORT',
