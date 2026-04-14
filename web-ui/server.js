@@ -856,6 +856,23 @@ async function handleInstanceApi(request, response, url) {
             return true;
         }
 
+        // Check if host is a Docker container name (no dots, not localhost/host.docker.internal)
+        const isContainerName = host !== 'localhost' &&
+                                host !== 'host.docker.internal' &&
+                                !host.includes('.') &&
+                                !host.match(/^\d+\.\d+\.\d+\.\d+$/);
+
+        if (isContainerName) {
+            sendJson(response, 200, {
+                ok: true,
+                skipped: true,
+                host,
+                port,
+                message: `⚠ Test ignoré — "${host}" est un nom de conteneur Docker. Le test de connexion fonctionne uniquement depuis l'hôte. La connexion depuis les conteneurs utilisera ${host}:${port} via le réseau interne.`,
+            });
+            return true;
+        }
+
         // Resolve host.docker.internal to localhost when testing from the host
         const resolvedHost = host === 'host.docker.internal' ? 'localhost' : host;
 

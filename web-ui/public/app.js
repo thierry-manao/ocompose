@@ -280,7 +280,10 @@ if (testDbConnectionButton) {
 
             if (result.ok) {
                 testDbConnectionResult.textContent = result.message;
-                testDbConnectionResult.className = 'ms-3 small text-success';
+                // If skipped (container name), show as warning instead of success
+                testDbConnectionResult.className = result.skipped
+                    ? 'ms-3 small text-warning'
+                    : 'ms-3 small text-success';
             } else {
                 testDbConnectionResult.textContent = result.error;
                 testDbConnectionResult.className = 'ms-3 small text-danger';
