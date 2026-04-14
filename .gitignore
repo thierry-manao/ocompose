@@ -1,4 +1,5 @@
 instances/
 .ocompose-ui*
+.env.normalized.*
 db/gtpdb500001.sql
 db/licencesdb.sql

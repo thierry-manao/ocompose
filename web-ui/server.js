@@ -1,8 +1,9 @@
 const http = require('http');
+const net = require('net');
 const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
-const { execFile } = require('child_process');
+const { execFile, execFileSync } = require('child_process');
 const { promisify } = require('util');
 
 const execFileAsync = promisify(execFile);
@@ -14,6 +15,35 @@ const TEMPLATE_PATH = path.join(PROJECT_DIR, '.env.example');
 const SCRIPT_PATH = path.join(PROJECT_DIR, 'scripts', 'ocompose.sh');
 const DBSERVER_UI_PORT = Number(process.env.DBSERVER_UI_PORT) || 9090;
 const DBSERVER_UI_HOST = process.env.DBSERVER_UI_HOST || 'localhost';
+
+// Convert a Windows path to a WSL path: D:\foo\bar -> /mnt/d/foo/bar
+function toWslPath(winPath) {
+    const p = winPath.replace(/\\/g, '/');
+    const m = p.match(/^([A-Za-z]):(\/.*)/);
+    if (m) return `/mnt/${m[1].toLowerCase()}${m[2]}`;
+    return p;
+}
+
+// Convert a Windows path to a Git Bash path: D:\foo\bar -> /d/foo/bar
+function toGitBashPath(winPath) {
+    const p = winPath.replace(/\\/g, '/');
+    const m = p.match(/^([A-Za-z]):(\/.*)/);
+    if (m) return `/${m[1].toLowerCase()}${m[2]}`;
+    return p;
+}
+
+// Detect if docker is available natively, otherwise fall back to WSL
+let USE_WSL = false;
+if (process.platform === 'win32') {
+    try {
+        execFileSync('docker', ['--version'], { stdio: 'ignore', timeout: 5000 });
+        USE_WSL = false;
+    } catch {
+        USE_WSL = true;
+    }
+}
+console.log(`[ocompose-ui] Docker mode: ${USE_WSL ? 'WSL' : 'native'}`);
+console.log(`[ocompose-ui] Bash mode: ${USE_WSL ? 'WSL' : 'native'}`);
 
 function parsePort(value) {
     if (value == null || value === '') {
@@ -86,6 +116,16 @@ function parseCookies(request) {
 
 function setSessionCookie(response, token) {
     response.setHeader('Set-Cookie', `${SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`);
+}
+
+// Check if a file or directory exists
+async function exists(filePath) {
+    try {
+        await fs.access(filePath);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 function clearSessionCookie(response) {
@@ -286,7 +326,11 @@ async function listInstanceNames() {
 
 async function getRunningContainers() {
     try {
-        const { stdout } = await execFileAsync('docker', ['ps', '--format', '{{.Names}}'], {
+        const cmd = USE_WSL ? 'wsl' : 'docker';
+        const cmdArgs = USE_WSL
+            ? ['docker', 'ps', '--format', '{{.Names}}']
+            : ['ps', '--format', '{{.Names}}'];
+        const { stdout } = await execFileAsync(cmd, cmdArgs, {
             cwd: PROJECT_DIR,
             maxBuffer: 1024 * 1024,
         });
@@ -455,14 +499,11 @@ async function createConsoleSession(instanceName, ownerToken) {
     const workspaceDir = getWorkspaceDirectory(config);
     const sessionId = crypto.randomUUID();
     const marker = `__OCOMPOSE_CONSOLE_${sessionId}__`;
-    const consoleProcess = execFile('docker', [
-        'exec',
-        '-i',
-        containerName,
-        'bash',
-        '-lc',
-        `cd ${JSON.stringify(workspaceDir)} || exit 1; printf '${marker}:READY:%s\\n' "$PWD"; while IFS= read -r line; do if [ "$line" = '__OCOMPOSE_EXIT__' ]; then exit 0; fi; eval "$line"; status=$?; printf '${marker}:END:%s:%s\\n' "$status" "$PWD"; done`,
-    ], {
+    const cmd = USE_WSL ? 'wsl' : 'docker';
+    const cmdArgs = USE_WSL
+        ? ['docker', 'exec', '-i', containerName, 'bash', '-lc', `cd ${JSON.stringify(workspaceDir)} || exit 1; printf '${marker}:READY:%s\\n' "$PWD"; while IFS= read -r line; do if [ "$line" = '__OCOMPOSE_EXIT__' ]; then exit 0; fi; eval "$line"; status=$?; printf '${marker}:END:%s:%s\\n' "$status" "$PWD"; done`]
+        : ['exec', '-i', containerName, 'bash', '-lc', `cd ${JSON.stringify(workspaceDir)} || exit 1; printf '${marker}:READY:%s\\n' "$PWD"; while IFS= read -r line; do if [ "$line" = '__OCOMPOSE_EXIT__' ]; then exit 0; fi; eval "$line"; status=$?; printf '${marker}:END:%s:%s\\n' "$status" "$PWD"; done`];
+    const consoleProcess = execFile(cmd, cmdArgs, {
         cwd: PROJECT_DIR,
         maxBuffer: 1024 * 1024 * 4,
     });
@@ -569,13 +610,29 @@ function sanitizeConfig(inputConfig) {
 }
 
 async function runOcompose(args) {
-    const command = process.platform === 'win32' ? 'bash' : SCRIPT_PATH;
-    const commandArgs = process.platform === 'win32' ? [SCRIPT_PATH, ...args] : args;
+    const cmd = USE_WSL ? 'wsl' : 'bash';
+    let scriptPath;
+    let cmdArgs;
 
-    return execFileAsync(command, commandArgs, {
+    if (USE_WSL) {
+        // WSL mode: convert to WSL path (/mnt/d/...)
+        scriptPath = toWslPath(SCRIPT_PATH);
+        cmdArgs = ['bash', scriptPath, ...args];
+    } else if (process.platform === 'win32') {
+        // Git Bash on Windows: convert to Git Bash path (/d/...)
+        scriptPath = toGitBashPath(SCRIPT_PATH);
+        cmdArgs = [scriptPath, ...args];
+    } else {
+        // Native Unix: use path as-is
+        scriptPath = SCRIPT_PATH;
+        cmdArgs = [scriptPath, ...args];
+    }
+
+    return execFileAsync(cmd, cmdArgs, {
         cwd: PROJECT_DIR,
         maxBuffer: 1024 * 1024,
-        env: process.env,
+        env: { ...process.env, NO_COLOR: '1', TERM: 'dumb' }, // Disable colors for UI output
+        timeout: 0, // No timeout - let commands run as long as needed
     });
 }
 
@@ -596,16 +653,11 @@ async function runWorkspaceCommand(instanceName, command) {
     const workspaceDir = getWorkspaceDirectory(config);
 
     try {
-        const result = await execFileAsync('docker', [
-            'exec',
-            '-i',
-            '-w',
-            workspaceDir,
-            containerName,
-            'bash',
-            '-lc',
-            normalizedCommand,
-        ], {
+        const cmd = USE_WSL ? 'wsl' : 'docker';
+        const cmdArgs = USE_WSL
+            ? ['docker', 'exec', '-i', '-w', workspaceDir, containerName, 'bash', '-lc', normalizedCommand]
+            : ['exec', '-i', '-w', workspaceDir, containerName, 'bash', '-lc', normalizedCommand];
+        const result = await execFileAsync(cmd, cmdArgs, {
             cwd: PROJECT_DIR,
             maxBuffer: 1024 * 1024 * 4,
         });
@@ -790,6 +842,72 @@ async function handleInstanceApi(request, response, url) {
         return true;
     }
 
+    if (request.method === 'POST' && url.pathname === '/api/test-db-connection') {
+        const body = await readJsonBody(request);
+        const host = normalizeValue(body.host) || 'localhost';
+        const port = Number.parseInt(normalizeValue(body.port), 10);
+        const user = normalizeValue(body.user);
+        const password = normalizeValue(body.password);
+        const database = normalizeValue(body.database);
+
+        if (!port || port < 1 || port > 65535) {
+            sendJson(response, 400, { ok: false, error: 'Port invalide.' });
+            return true;
+        }
+
+        // Resolve host.docker.internal to localhost when testing from the host
+        const resolvedHost = host === 'host.docker.internal' ? 'localhost' : host;
+
+        try {
+            const result = await new Promise((resolve, reject) => {
+                const socket = net.createConnection({ host: resolvedHost, port, timeout: 5000 }, () => {
+                    // Connected — wait for MySQL/MariaDB handshake packet
+                    socket.once('data', (data) => {
+                        socket.destroy();
+                        // Parse MySQL handshake: skip 4-byte header, then protocol version byte, then null-terminated server version string
+                        if (data.length > 5 && data[4] === 0x0a) {
+                            const versionEnd = data.indexOf(0x00, 5);
+                            const serverVersion = versionEnd > 5 ? data.slice(5, versionEnd).toString('utf8') : 'unknown';
+                            resolve({ ok: true, serverVersion });
+                        } else {
+                            resolve({ ok: true, serverVersion: null });
+                        }
+                    });
+                });
+
+                socket.on('timeout', () => {
+                    socket.destroy();
+                    reject(new Error(`Connexion expirée vers ${resolvedHost}:${port}`));
+                });
+
+                socket.on('error', (error) => {
+                    socket.destroy();
+                    reject(error);
+                });
+            });
+
+            sendJson(response, 200, {
+                ok: true,
+                host: resolvedHost,
+                port,
+                serverVersion: result.serverVersion || null,
+                message: result.serverVersion
+                    ? `✓ Connecté avec succès — serveur ${result.serverVersion}. Test effectué depuis l'hôte (${resolvedHost}:${port}). Les conteneurs utiliseront ${host}:${port}.`
+                    : `✓ Port ${resolvedHost}:${port} accessible depuis l'hôte. Les conteneurs utiliseront ${host}:${port}.`,
+            });
+        } catch (error) {
+            sendJson(response, 200, {
+                ok: false,
+                host: resolvedHost,
+                port,
+                error: error.code === 'ECONNREFUSED'
+                    ? `Connexion refusée sur ${resolvedHost}:${port}. Le serveur de base de données est-il démarré ?`
+                    : `Erreur de connexion : ${error.message}`,
+            });
+        }
+        return true;
+    }
+
     if (pathParts.length === 4 && pathParts[0] === 'api' && pathParts[1] === 'instances' && pathParts[3] === 'files') {
         const instanceName = pathParts[2];
         validateInstanceName(instanceName);
@@ -828,8 +946,15 @@ async function handleInstanceApi(request, response, url) {
     if (request.method === 'POST' && url.pathname === '/api/instances') {
         const body = await readJsonBody(request);
         const instanceName = normalizeValue(body.name);
+        const withDockerOverrides = body.withDockerOverrides === true;
         validateInstanceName(instanceName);
-        await runOcompose([instanceName, 'init', '--yes']);
+
+        const args = [instanceName, 'init', '--yes'];
+        if (withDockerOverrides) {
+            args.push('--with-docker-overrides');
+        }
+
+        await runOcompose(args);
         sendJson(response, 201, { instance: await getInstance(instanceName, accessHost) });
         return true;
     }
@@ -847,6 +972,40 @@ async function handleInstanceApi(request, response, url) {
             const body = await readJsonBody(request);
             await writeInstanceConfig(instanceName, sanitizeConfig(body.config));
             sendJson(response, 200, { instance: await getInstance(instanceName, accessHost) });
+            return true;
+        }
+    }
+
+    if (pathParts.length === 4 && pathParts[0] === 'api' && pathParts[1] === 'instances' && pathParts[3] === 'docker-overrides') {
+        const instanceName = pathParts[2];
+        validateInstanceName(instanceName);
+
+        if (request.method === 'GET') {
+            const instanceDir = path.join(INSTANCES_DIR, instanceName);
+            const overrideFile = path.join(instanceDir, 'docker-compose.override.yml');
+            const dockerDir = path.join(instanceDir, 'docker');
+
+            const files = [];
+            if (await exists(overrideFile)) {
+                files.push('docker-compose.override.yml');
+            }
+            if (await exists(path.join(dockerDir, 'config'))) {
+                files.push('docker/config/');
+            }
+            if (await exists(path.join(dockerDir, 'nginx'))) {
+                files.push('docker/nginx/');
+            }
+
+            sendJson(response, 200, {
+                enabled: files.length > 0,
+                files,
+            });
+            return true;
+        }
+
+        if (request.method === 'POST') {
+            await runOcompose([instanceName, 'setup-docker-overrides']);
+            sendJson(response, 200, { ok: true });
             return true;
         }
     }

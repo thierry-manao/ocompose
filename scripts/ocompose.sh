@@ -10,6 +10,9 @@ UI_AUTH_FILE="$PROJECT_DIR/.ocompose-ui.auth"
 CLI_WRAPPER_FILE="$PROJECT_DIR/ocompose"
 CLI_WRAPPER_CMD_FILE="$PROJECT_DIR/ocompose.cmd"
 
+# Clean up temporary normalized env files on exit
+trap 'rm -f "$PROJECT_DIR"/.env.normalized.$$ 2>/dev/null || true' EXIT INT TERM
+
 # ── Docker: detect if native docker is available, otherwise use WSL ──
 USE_WSL="false"
 if ! command -v docker >/dev/null 2>&1; then
@@ -68,6 +71,16 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
+
+# Disable colors if NO_COLOR is set or TERM is dumb (for UI output)
+if [[ -n "${NO_COLOR:-}" ]] || [[ "${TERM:-}" == "dumb" ]]; then
+    RED=''
+    GREEN=''
+    YELLOW=''
+    CYAN=''
+    BOLD=''
+    NC=''
+fi
 
 # ── Validate instance ──
 require_instance() {
@@ -139,16 +152,31 @@ is_http_repo_url() {
     [[ "$repo_url" =~ ^https?:// ]]
 }
 
-build_git_http_auth_header() {
+build_git_http_auth_url() {
+    local repo_url="$1"
     local username="${GIT_HTTP_USERNAME:-}"
     local password="${GIT_HTTP_PASSWORD:-}"
 
     if [[ -z "$username" || -z "$password" ]]; then
-        echo -e "${RED}✗ Both GIT_HTTP_USERNAME and GIT_HTTP_PASSWORD must be set for non-interactive HTTPS git auth.${NC}"
-        exit 1
+        echo "$repo_url"
+        return
     fi
 
-    printf '%s' "$username:$password" | base64 | tr -d '\r\n'
+    # URL-encode username and password
+    local encoded_user
+    local encoded_pass
+    encoded_user=$(printf '%s' "$username" | jq -sRr @uri 2>/dev/null || printf '%s' "$username")
+    encoded_pass=$(printf '%s' "$password" | jq -sRr @uri 2>/dev/null || printf '%s' "$password")
+
+    # Insert credentials into URL: https://user:pass@host/path
+    if [[ "$repo_url" =~ ^https?://([^/]+)(.*)$ ]]; then
+        local host="${BASH_REMATCH[1]}"
+        local path="${BASH_REMATCH[2]}"
+        local protocol="${repo_url%%://*}"
+        echo "${protocol}://${encoded_user}:${encoded_pass}@${host}${path}"
+    else
+        echo "$repo_url"
+    fi
 }
 
 escape_mysql_string_literal() {
@@ -159,23 +187,79 @@ escape_mysql_string_literal() {
     printf '%s' "$value"
 }
 
+setup_docker_overrides() {
+    local instance_dir="$1"
+    local templates_dir="$PROJECT_DIR/templates"
+
+    if [[ ! -d "$templates_dir" ]]; then
+        echo -e "${YELLOW}⚠ Templates directory not found. Skipping Docker overrides.${NC}"
+        return
+    fi
+
+    echo -e "${CYAN}📋 Setting up Docker overrides for instance...${NC}"
+
+    # Copy docker-compose.override.yml template
+    if [[ -f "$templates_dir/docker-compose.override.yml" ]]; then
+        cp "$templates_dir/docker-compose.override.yml" "$instance_dir/docker-compose.override.yml"
+        echo -e "   ✓ Copied docker-compose.override.yml"
+    fi
+
+    # Copy docker config templates
+    if [[ -d "$templates_dir/docker" ]]; then
+        mkdir -p "$instance_dir/docker"
+        cp -r "$templates_dir/docker/"* "$instance_dir/docker/"
+        echo -e "   ✓ Copied docker/ templates (config, nginx)"
+    fi
+
+    echo -e "${GREEN}✅ Docker overrides configured!${NC}"
+    echo -e "   Edit files in $instance_dir/docker/ to customize"
+}
+
+normalize_git_url() {
+    local url="$1"
+    # Strip embedded credentials from git URLs for comparison
+    # https://user:pass@host/path → https://host/path
+    if [[ "$url" =~ ^(https?://)[^@]+@(.+)$ ]]; then
+        echo "${BASH_REMATCH[1]}${BASH_REMATCH[2]}"
+    else
+        echo "$url"
+    fi
+}
+
 run_git_repo_command() {
     local repo_url="$1"
     shift
 
-    if is_http_repo_url "$repo_url" && [[ -n "${GIT_HTTP_USERNAME:-}" || -n "${GIT_HTTP_PASSWORD:-}" ]]; then
-        local auth_header
-        auth_header="$(build_git_http_auth_header)"
-        git \
-            -c credential.helper= \
-            -c core.askPass= \
-            -c credential.interactive=never \
-            -c "http.extraHeader=Authorization: Basic $auth_header" \
-            "$@"
-        return
+    # Always use non-interactive mode for UI/automation compatibility
+    local git_env=(
+        GIT_TERMINAL_PROMPT=0
+        GIT_SSH_COMMAND="ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+    )
+
+    # If this is an HTTP(S) URL and we have credentials, embed them in the URL
+    local auth_url="$repo_url"
+    if is_http_repo_url "$repo_url" && [[ -n "${GIT_HTTP_USERNAME:-}" && -n "${GIT_HTTP_PASSWORD:-}" ]]; then
+        auth_url="$(build_git_http_auth_url "$repo_url")"
     fi
 
-    git "$@"
+    # Replace the original repo URL in args with the authenticated URL
+    local new_args=()
+    for arg in "$@"; do
+        if [[ "$arg" == "$repo_url" ]]; then
+            new_args+=("$auth_url")
+        else
+            new_args+=("$arg")
+        fi
+    done
+
+    env "${git_env[@]}" git \
+        -c credential.helper= \
+        -c core.askPass= \
+        -c credential.interactive=never \
+        -c http.postBuffer=524288000 \
+        -c http.lowSpeedLimit=0 \
+        -c http.lowSpeedTime=999999 \
+        "${new_args[@]}"
 }
 
 seed_state_dir() {
@@ -589,7 +673,11 @@ bootstrap_instance_git_repo() {
             current_origin="$(git -C "$workspace_dir" remote get-url origin)"
         fi
 
-        if [[ -n "$repo_url" && -n "$current_origin" && "$current_origin" != "$repo_url" ]]; then
+        # Normalize URLs for comparison (strip credentials)
+        local normalized_current="$(normalize_git_url "$current_origin")"
+        local normalized_new="$(normalize_git_url "$repo_url")"
+
+        if [[ -n "$repo_url" && -n "$current_origin" && "$normalized_current" != "$normalized_new" ]]; then
             log_verbose "${YELLOW}⚠ Repository URL changed for '$INSTANCE'. Removing old workspace...${NC}"
             log_verbose "  Old origin: $current_origin"
             log_verbose "  New origin: $repo_url"
@@ -597,10 +685,20 @@ bootstrap_instance_git_repo() {
             mkdir -p "$workspace_dir"
 
             log_verbose "${CYAN}📥 Cloning new repository for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
+            echo -e "${CYAN}   This may take a while for large repositories...${NC}"
             if [[ -n "$branch" ]]; then
-                run_git_repo_command "$repo_url" clone --quiet --branch "$branch" --single-branch "$repo_url" "$workspace_dir"
+                if ! run_git_repo_command "$repo_url" clone --depth 1 --branch "$branch" --single-branch --progress "$repo_url" "$workspace_dir"; then
+                    echo -e "${RED}✗ Failed to clone repository: $repo_url${NC}" >&2
+                    echo -e "${RED}  Branch: $branch${NC}" >&2
+                    echo -e "${RED}  Hint: Check GIT_HTTP_USERNAME, GIT_HTTP_PASSWORD, or SSH keys.${NC}" >&2
+                    exit 1
+                fi
             else
-                run_git_repo_command "$repo_url" clone --quiet "$repo_url" "$workspace_dir"
+                if ! run_git_repo_command "$repo_url" clone --depth 1 --progress "$repo_url" "$workspace_dir"; then
+                    echo -e "${RED}✗ Failed to clone repository: $repo_url${NC}" >&2
+                    echo -e "${RED}  Hint: Check GIT_HTTP_USERNAME, GIT_HTTP_PASSWORD, or SSH keys.${NC}" >&2
+                    exit 1
+                fi
             fi
 
             log_verbose "${CYAN}🔒 Setting workspace permissions (777)...${NC}"
@@ -620,10 +718,20 @@ bootstrap_instance_git_repo() {
         prepare_workspace_for_clone "$workspace_dir"
 
         log_verbose "${CYAN}📥 Cloning repository for '${BOLD}$INSTANCE${NC}${CYAN}'...${NC}"
+        echo -e "${CYAN}   This may take a while for large repositories...${NC}"
         if [[ -n "$branch" ]]; then
-            run_git_repo_command "$repo_url" clone --quiet --branch "$branch" --single-branch "$repo_url" "$workspace_dir"
+            if ! run_git_repo_command "$repo_url" clone --depth 1 --branch "$branch" --single-branch --progress "$repo_url" "$workspace_dir"; then
+                echo -e "${RED}✗ Failed to clone repository: $repo_url${NC}" >&2
+                echo -e "${RED}  Branch: $branch${NC}" >&2
+                echo -e "${RED}  Hint: Check GIT_HTTP_USERNAME, GIT_HTTP_PASSWORD, or SSH keys.${NC}" >&2
+                exit 1
+            fi
         else
-            run_git_repo_command "$repo_url" clone --quiet "$repo_url" "$workspace_dir"
+            if ! run_git_repo_command "$repo_url" clone --depth 1 --progress "$repo_url" "$workspace_dir"; then
+                echo -e "${RED}✗ Failed to clone repository: $repo_url${NC}" >&2
+                echo -e "${RED}  Hint: Check GIT_HTTP_USERNAME, GIT_HTTP_PASSWORD, or SSH keys.${NC}" >&2
+                exit 1
+            fi
         fi
 
         log_verbose "${CYAN}🔒 Setting workspace permissions (777)...${NC}"
@@ -1463,6 +1571,12 @@ compose_cmd() {
         compose_files+=(-f "$(docker_path "$vhosts_override")")
     fi
 
+    # Support instance-specific docker-compose.override.yml
+    local instance_override="$INSTANCES_DIR/$INSTANCE/docker-compose.override.yml"
+    if [[ -f "$instance_override" ]]; then
+        compose_files+=(-f "$(docker_path "$instance_override")")
+    fi
+
     local docker_env_file
     docker_env_file="$(docker_path "$normalized_env_file")"
 
@@ -1514,6 +1628,11 @@ cmd_init() {
     # Copy template and inject instance name
     sed "s/^PROJECT_NAME=.*/PROJECT_NAME=$INSTANCE/" \
         "$PROJECT_DIR/.env.example" > "$instance_dir/.env"
+
+    # Set up Docker overrides if requested
+    if has_flag "--with-docker-overrides" "$@" || has_flag "--docker-overrides" "$@"; then
+        setup_docker_overrides "$instance_dir"
+    fi
 
     # Auto-assign unique ports based on instance count
     local count
@@ -1872,6 +1991,18 @@ cmd_list() {
     done
 }
 
+cmd_setup_docker_overrides() {
+    require_instance
+    local instance_dir="$INSTANCES_DIR/$INSTANCE"
+
+    if [[ ! -d "$instance_dir" ]]; then
+        echo -e "${RED}✗ Instance '$INSTANCE' not found.${NC}"
+        exit 1
+    fi
+
+    setup_docker_overrides "$instance_dir"
+}
+
 cmd_help() {
     echo ""
     echo -e "${CYAN}${BOLD}ocompose${NC} — Reproducible Docker Mini OS (Multi-Instance)"
@@ -1944,5 +2075,6 @@ case "$COMMAND" in
     status)  cmd_status ;;
     logs)    cmd_logs "$@" ;;
     destroy) cmd_destroy "$@" ;;
+    setup-docker-overrides) cmd_setup_docker_overrides ;;
     help|*)  cmd_help ;;
 esac

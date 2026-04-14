@@ -1,0 +1,31 @@
+# Docker Compose Override Template
+# Copy this file to instances/<name>/docker-compose.override.yml
+# This file allows you to override/extend the main docker-compose.yml
+#
+# IMPORTANT: Paths are relative to the ocompose root directory
+# Use ${PROJECT_NAME} variable to reference the instance name
+
+services:
+  php:
+    # Example: Override CI3 config files
+    # volumes:
+    #   - ./instances/${PROJECT_NAME}/docker/config/database.php:/var/www/html/application/config/development/database.php
+    #   - ./instances/${PROJECT_NAME}/docker/config/config.php:/var/www/html/application/config/development/config.php
+
+  nginx:
+    # Example: Custom nginx config
+    # volumes:
+    #   - ./instances/${PROJECT_NAME}/docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+    # Example: Custom port mappings
+    ports:
+      - "${NGINX_HTTP_PORT:-8000}:80"
+      # - "${NGINX_API_PORT:-8001}:81"  # Uncomment for dual-port API setup
+
+  # Example: Add custom services
+  # mailhog:
+  #   image: mailhog/mailhog
+  #   ports:
+  #     - "8025:8025"
+  #   networks:
+ #     - net

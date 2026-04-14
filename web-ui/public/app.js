@@ -208,26 +208,28 @@ function onDbserverInstanceSelected(instanceName) {
 
 function renderDbserverInstancesDetail() {
     if (!dbserverState.connected || dbserverState.instances.length === 0) {
-        dbserverInstancesDetail.style.display = 'none';
+        dbserverInstancesList.innerHTML = `
+            <div class="text-center text-secondary py-4">
+                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                <p class="mt-2 mb-0 small">Aucune instance détectée</p>
+            </div>
+        `;
         return;
     }
 
-    dbserverInstancesDetail.style.display = 'block';
     dbserverInstancesList.innerHTML = dbserverState.instances.map((inst) => {
         const engine = inst.config?.DB_ENGINE || '?';
         const port = inst.config?.DB_PORT || '?';
         const dbs = inst.seedHistory ? [...new Set(inst.seedHistory.map((s) => s.database).filter(Boolean))].join(', ') : '-';
         const statusClass = inst.running ? 'running' : 'stopped';
         return `
-            <div class="col-md-6">
-                <div class="card-shell p-3">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <strong>${inst.name}</strong>
-                        <span class="status-chip ${statusClass}">${inst.running ? 'actif' : 'arrêté'}</span>
-                    </div>
-                    <small class="text-secondary d-block">Moteur: ${engine} | Port: ${port}</small>
-                    <small class="text-secondary d-block">Bases: ${dbs || 'aucune'}</small>
+            <div class="card-shell p-3">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <strong>${inst.name}</strong>
+                    <span class="status-chip ${statusClass}">${inst.running ? 'actif' : 'arrêté'}</span>
                 </div>
+                <small class="text-secondary d-block">Moteur: ${engine} | Port: ${port}</small>
+                <small class="text-secondary d-block">Bases: ${dbs || 'aucune'}</small>
             </div>
         `;
     }).join('');
@@ -249,6 +251,45 @@ if (dbserverDatabaseSelect) {
 if (dbserverRefreshButton) {
     dbserverRefreshButton.addEventListener('click', () => {
         loadDbserverInstances();
+    });
+}
+
+// ── Test DB connection ──
+
+const testDbConnectionButton = document.querySelector('#test-db-connection');
+const testDbConnectionResult = document.querySelector('#test-db-connection-result');
+
+if (testDbConnectionButton) {
+    testDbConnectionButton.addEventListener('click', async () => {
+        const host = form.elements.namedItem('DB_HOST')?.value || '';
+        const port = form.elements.namedItem('DB_PORT')?.value || '';
+        const user = form.elements.namedItem('DB_USER')?.value || '';
+        const password = form.elements.namedItem('DB_PASSWORD')?.value || '';
+        const database = form.elements.namedItem('DB_DATABASE')?.value || '';
+
+        testDbConnectionResult.textContent = 'Test en cours...';
+        testDbConnectionResult.className = 'ms-3 small text-secondary';
+        testDbConnectionButton.disabled = true;
+
+        try {
+            const result = await apiRequest('/api/test-db-connection', {
+                method: 'POST',
+                body: JSON.stringify({ host, port, user, password, database }),
+            });
+
+            if (result.ok) {
+                testDbConnectionResult.textContent = result.message;
+                testDbConnectionResult.className = 'ms-3 small text-success';
+            } else {
+                testDbConnectionResult.textContent = result.error;
+                testDbConnectionResult.className = 'ms-3 small text-danger';
+            }
+        } catch (error) {
+            testDbConnectionResult.textContent = 'Erreur lors du test de connexion.';
+            testDbConnectionResult.className = 'ms-3 small text-danger';
+        } finally {
+            testDbConnectionButton.disabled = false;
+        }
     });
 }
 
@@ -892,6 +933,7 @@ createForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const formData = new FormData(createForm);
     const name = String(formData.get('name') || '').trim();
+    const withDockerOverrides = formData.get('withDockerOverrides') === 'on';
 
     if (!name) {
         setMessage('Entrez d\'abord un nom d\'instance.', true);
@@ -902,9 +944,11 @@ createForm.addEventListener('submit', async (event) => {
         setMessage(`Création de ${name}...`);
         const payload = await apiRequest('/api/instances', {
             method: 'POST',
-            body: JSON.stringify({ name }),
+            body: JSON.stringify({ name, withDockerOverrides }),
         });
         createForm.reset();
+        // Reset checkbox to checked by default
+        document.querySelector('#with-docker-overrides').checked = true;
         await refreshInstances(false);
         state.selectedInstanceName = payload.instance.name;
         renderInstances();
@@ -1096,6 +1140,83 @@ logoutButton.addEventListener('click', async () => {
     } catch (error) {
         setMessage(error.message, true);
     }
+});
+
+// ── Docker Overrides ──
+
+const dockerOverridesStatus = document.querySelector('#docker-overrides-status');
+const dockerOverridesMessage = document.querySelector('#docker-overrides-message');
+const dockerOverridesActions = document.querySelector('#docker-overrides-actions');
+const enableDockerOverridesButton = document.querySelector('#enable-docker-overrides');
+
+async function checkDockerOverrides() {
+    const instance = getSelectedInstance();
+    if (!instance) {
+        dockerOverridesMessage.textContent = 'Sélectionnez une instance pour voir le statut des surcharges Docker.';
+        dockerOverridesActions.style.display = 'none';
+        return;
+    }
+
+    try {
+        const payload = await apiRequest(`/api/instances/${instance.name}/docker-overrides`);
+        if (payload.enabled) {
+            dockerOverridesStatus.innerHTML = `
+                <div class="alert alert-success mb-0">
+                    <i class="bi bi-check-circle me-2"></i>
+                    Les surcharges Docker sont <strong>activées</strong> pour cette instance.
+                    <div class="mt-2">
+                        <small class="d-block">Fichiers: ${payload.files.join(', ')}</small>
+                        <a href="#files" class="btn btn-sm btn-outline-success mt-2" onclick="setActiveView('files')">
+                            <i class="bi bi-folder2-open me-1"></i>Voir les fichiers
+                        </a>
+                    </div>
+                </div>
+            `;
+            dockerOverridesActions.style.display = 'none';
+        } else {
+            dockerOverridesMessage.textContent = 'Les surcharges Docker ne sont pas activées pour cette instance.';
+            dockerOverridesStatus.innerHTML = `
+                <div class="alert alert-warning mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <span>Les surcharges Docker ne sont <strong>pas activées</strong> pour cette instance.</span>
+                </div>
+            `;
+            dockerOverridesActions.style.display = 'block';
+        }
+    } catch {
+        dockerOverridesMessage.textContent = 'Impossible de vérifier le statut des surcharges Docker.';
+        dockerOverridesActions.style.display = 'none';
+    }
+}
+
+enableDockerOverridesButton.addEventListener('click', async () => {
+    const instance = getSelectedInstance();
+    if (!instance) {
+        setMessage('Sélectionnez d\'abord une instance.', true);
+        return;
+    }
+
+   try {
+        enableDockerOverridesButton.disabled = true;
+        setMessage(`Activation des surcharges Docker pour ${instance.name}...`);
+        await apiRequest(`/api/instances/${instance.name}/docker-overrides`, {
+            method: 'POST',
+        });
+        setMessage(`Surcharges Docker activées pour ${instance.name}.`);
+        await checkDockerOverrides();
+    } catch (error) {
+        setMessage(error.message, true);
+        enableDockerOverridesButton.disabled = false;
+    }
+});
+
+// Check docker overrides when selecting an instance
+settingsTabButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+        if (button.dataset.settingsTab === 'stack') {
+            setTimeout(checkDockerOverrides, 100);
+        }
+    });
 });
 
 (async () => {

@@ -1,4 +1,6 @@
 *.sh text eol=lf
+ocompose text eol=lf
+ocompose.cmd text eol=crlf
 *.env text eol=lf
 *.env.example text eol=lf
 Dockerfile text eol=lf

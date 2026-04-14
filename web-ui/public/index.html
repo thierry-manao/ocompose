@@ -103,6 +103,13 @@
                                 <span class="input-group-text"><i class="bi bi-plus-circle"></i></span>
                                 <input id="new-instance-name" name="name" class="form-control" type="text" placeholder="client-a" autocomplete="off" required>
                             </div>
+                            <div class="form-check form-switch mt-3">
+                                <input class="form-check-input" type="checkbox" id="with-docker-overrides" name="withDockerOverrides" checked>
+                                <label class="form-check-label" for="with-docker-overrides">
+                                    <strong>Activer les surcharges Docker</strong>
+                                    <small class="d-block text-secondary">Crée automatiquement les templates de config personnalisés (nginx, PHP/CI3)</small>
+                                </label>
+                            </div>
                             <button class="btn btn-dark w-100 mt-3" type="submit">Créer l'instance</button>
                             <div class="form-text mt-2">Utilisez des lettres, chiffres, tirets ou underscores.</div>
                         </form>
@@ -235,6 +242,38 @@
                                     </section>
                                 </div>
                             </div>
+
+                            <!-- Docker Overrides Section -->
+                            <div class="row g-4 mt-1">
+                                <div class="col-12">
+                                    <section class="card-shell p-4 p-lg-5">
+                                        <div class="section-header mb-4">
+                                            <div class="section-icon"><i class="bi bi-file-earmark-code"></i></div>
+                                            <div>
+                                                <p class="eyebrow eyebrow-dark mb-2">Avancé</p>
+                                                <h2 class="section-title mb-1">Surcharges Docker</h2>
+                                                <p class="section-copy mb-0">Personnalisez les configurations Nginx et PHP/CI3 avec des fichiers montés par volume.</p>
+                                            </div>
+                                        </div>
+
+                                        <div id="docker-overrides-status" class="docker-overrides-status">
+                                            <div class="alert alert-info mb-0">
+                                                <i class="bi bi-info-circle me-2"></i>
+                                                <span id="docker-overrides-message">Chargement...</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-3" id="docker-overrides-actions" style="display: none;">
+                                            <button type="button" id="enable-docker-overrides" class="btn btn-primary">
+                                                <i class="bi bi-plus-circle me-2"></i>Activer les surcharges Docker
+                                            </button>
+                                            <p class="form-text mt-2">
+                                                Cela créera <code>docker-compose.override.yml</code> et les templates de configuration dans <code>docker/</code>
+                                            </p>
+                                        </div>
+                                    </section>
+                                </div>
+                            </div>
                         </section>
 
                         <section class="settings-tab-panel" data-settings-tab-panel="workspace">
@@ -307,7 +346,7 @@
 
                         <section class="settings-tab-panel" data-settings-tab-panel="database">
                             <div class="row g-4">
-                                <div class="col-12 col-xxl-8">
+                                <div class="col-12 col-lg-7">
                                     <section class="card-shell p-4 p-lg-5 h-100">
                                         <div class="section-header mb-4">
                                             <div class="section-icon"><i class="bi bi-database-lock"></i></div>
@@ -329,8 +368,8 @@
                                         <div class="row g-3">
                                             <div class="col-md-6">
                                                 <label class="form-label label-caps">Hôte de la base de données</label>
-                                                <input class="form-control" type="text" name="DB_HOST" value="host.docker.internal" readonly>
-                                                <div class="form-text mt-1">Résolu automatiquement vers la machine hôte depuis les conteneurs.</div>
+                                                <input class="form-control" type="text" name="DB_HOST" value="host.docker.internal">
+                                                <div class="form-text mt-1">Pour atteindre le port de l'hôte depuis les conteneurs Docker. Utilisez <code>localhost</code> si db-docker-server tourne aussi dans Docker sur le même réseau.</div>
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label label-caps">Port</label>
@@ -359,12 +398,23 @@
                                                 <label class="form-label label-caps">Mot de passe</label>
                                                 <input class="form-control" type="text" name="DB_PASSWORD" value="root">
                                             </div>
+                                            <div class="col-12 mt-3">
+                                                <button id="test-db-connection" class="btn btn-outline-dark btn-sm rounded-pill" type="button">
+                                                    <i class="bi bi-plug me-1"></i>Tester la connexion
+                                                </button>
+                                                <span id="test-db-connection-result" class="ms-3 small"></span>
+                                            </div>
                                         </div>
-
-                                        <div id="dbserver-instances-detail" class="mt-4" style="display:none;">
-                                            <hr class="my-3">
-                                            <p class="eyebrow eyebrow-dark mb-3">Instances db-docker-server détectées</p>
-                                            <div id="dbserver-instances-list" class="row g-3"></div>
+                                    </section>
+                                </div>
+                                <div class="col-12 col-lg-5">
+                                    <section class="card-shell p-4 h-100 d-flex flex-column">
+                                        <div class="mb-3">
+                                            <p class="eyebrow eyebrow-dark mb-2">Instances disponibles</p>
+                                            <h2 class="section-title mb-1">db-docker-server</h2>
+                                        </div>
+                                        <div id="dbserver-instances-detail" class="flex-grow-1 overflow-auto" style="max-height: 500px;">
+                                            <div id="dbserver-instances-list" class="d-flex flex-column gap-3"></div>
                                         </div>
                                     </section>
                                 </div>

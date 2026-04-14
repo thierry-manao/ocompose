@@ -43,7 +43,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Make FPM listen on port 9000 (all interfaces) instead of a unix socket
 # so nginx can reach it across containers.
 RUN PHP_FPM_CONF=$(find /etc/php/${PHP_VERSION}/fpm/pool.d -name "www.conf" -print -quit) \
-    && sed -i 's|^listen = .*|listen = 9000|' "$PHP_FPM_CONF"
+    && sed -i 's|^listen = .*|listen = 9000|' "$PHP_FPM_CONF" \
+    && sed -i 's|^;\?clear_env\s*=.*|clear_env = no|' "$PHP_FPM_CONF"
 
 # FPM must run in the foreground inside Docker.
 RUN PHP_FPM_INI=$(find /etc/php/${PHP_VERSION}/fpm -maxdepth 1 -name "php-fpm.conf" -print -quit) \
@@ -57,8 +58,9 @@ RUN ln -sf /etc/php/custom.ini /etc/php/${PHP_VERSION}/fpm/conf.d/99-custom.ini 
 
 WORKDIR /var/www/html
 
-# ── CI3 session directory (writable by PHP-FPM) ──
+# ── CI3 session and log directories (writable by PHP-FPM) ──
 RUN mkdir -p /tmp/ci_sessions && chmod 1733 /tmp/ci_sessions
+RUN mkdir -p /tmp/ci_logs && chmod 1777 /tmp/ci_logs
 
 EXPOSE 9000
 CMD ["sh", "-c", "php-fpm${PHP_VERSION} --nodaemonize"]
