@@ -129,10 +129,13 @@ services:
 
 Templates are available in `templates/`:
 
-- `docker-compose.override.yml` - Base override template with examples
+- `docker-compose.override.yml` - Base override template with comprehensive documentation
+- `OVERRIDE-EXAMPLES.md` - Complete working examples (identification2023, compta-2022, etc.)
 - `docker/config/*.php` - CodeIgniter 3 config templates using `getenv()`
 - `docker/nginx/default.conf` - Dual-port nginx config (main + API)
 - `docker/README.md` - Documentation
+
+**See `templates/OVERRIDE-EXAMPLES.md` for real-world configurations based on existing projects!**
 
 ## Environment Variables in Configs
 

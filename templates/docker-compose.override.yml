@@ -7,25 +7,87 @@
 
 services:
   php:
-    # Example: Override CI3 config files
+    # ─── CODEIGNITER 3 CONFIG OVERRIDES ───
+    # Uncomment and customize as needed for your CI3 application
+
+    # Single-app setup (main application only)
     # volumes:
     #   - ./instances/${PROJECT_NAME}/docker/config/database.php:/var/www/html/application/config/development/database.php
     #   - ./instances/${PROJECT_NAME}/docker/config/config.php:/var/www/html/application/config/development/config.php
+    #   - ./instances/${PROJECT_NAME}/docker/config/constants.php:/var/www/html/application/config/development/constants.php
+
+    # Dual-app setup (main + webservice) — e.g., identification2023
+    # volumes:
+    #   # Main app configs
+    #   - ./instances/${PROJECT_NAME}/docker/config/database.php:/var/www/html/application/config/development/database.php
+    #   - ./instances/${PROJECT_NAME}/docker/config/config.php:/var/www/html/application/config/development/config.php
+    #   - ./instances/${PROJECT_NAME}/docker/config/constants.php:/var/www/html/application/config/development/constants.php
+    #   # Webservice configs (same files)
+    #   - ./instances/${PROJECT_NAME}/docker/config/database.php:/var/www/html/webservice/v1/application/config/development/database.php
+
+    # Dual-app setup (main + API with separate configs) — e.g., compta-2022
+    # volumes:
+    #   # Main app configs
+    #   - ./instances/${PROJECT_NAME}/docker/config/database.php:/var/www/html/application/config/development/database.php
+    #   - ./instances/${PROJECT_NAME}/docker/config/config.php:/var/www/html/application/config/development/config.php
+    #   - ./instances/${PROJECT_NAME}/docker/config/constants.php:/var/www/html/application/config/development/constants.php
+    #   # API configs (separate files)
+    #   - ./instances/${PROJECT_NAME}/docker/config/api-database.php:/var/www/html/api/application/config/development/database.php
+    #   - ./instances/${PROJECT_NAME}/docker/config/api-config.php:/var/www/html/api/application/config/development/config.php
+    #   - ./instances/${PROJECT_NAME}/docker/config/api-constants.php:/var/www/html/api/application/config/development/constants.php
+
+    # ─── CUSTOM SESSION VOLUMES ───
+    # Uncomment if your app uses a custom session path (see Dockerfile)
+    # NOTE: Volume will be auto-namespaced as <instance>_sessions by Docker Compose
+    # volumes:
+    #   - sessions:/var/www/compte/sessions      # For identification-type apps
+    #   - sessions:/var/www/compta/session       # For compta-type apps
+
+    # ─── EXTERNAL NETWORK CONNECTIONS ───
+    # Uncomment to connect to external services (e.g., db-docker-server)
+    # networks:
+    #   - net
+    #   - dbserver
 
   nginx:
-    # Example: Custom nginx config
+    # ─── CUSTOM NGINX CONFIG ───
+    # Uncomment to override default nginx configuration
     # volumes:
     #   - ./instances/${PROJECT_NAME}/docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
 
-    # Example: Custom port mappings
+    # ─── PORT MAPPINGS ───
+    # Customize ports for your instance (avoid conflicts between projects)
     ports:
       - "${NGINX_HTTP_PORT:-8000}:80"
       # - "${NGINX_API_PORT:-8001}:81"  # Uncomment for dual-port API setup
 
-  # Example: Add custom services
+    # ─── EXTERNAL NETWORK CONNECTIONS ───
+    # Uncomment if nginx needs to connect to external networks
+    # networks:
+    #   - net
+    #   - dbserver
+
+  # ─── CUSTOM SERVICES ───
+  # Add additional services as needed
+
+  # Example: MailHog for email testing
   # mailhog:
   #   image: mailhog/mailhog
   #   ports:
-  #     - "8025:8025"
+  #     - "${MAILHOG_UI_PORT:-8025}:8025"
+  #     - "${MAILHOG_SMTP_PORT:-1025}:1025"
   #   networks:
- #     - net
+  #     - net
+
+# ─── CUSTOM VOLUMES ───
+# Uncomment if your app uses custom named volumes
+# NOTE: Volumes are auto-namespaced as <instance>_<volumename> by Docker Compose
+# volumes:
+#   sessions:
+
+# ─── EXTERNAL NETWORKS ───
+# Uncomment to connect to external Docker networks
+# networks:
+#   dbserver:
+#     external: true
+#     name: dbserver_licences_default  # Match your db-docker-server network name

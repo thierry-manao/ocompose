@@ -245,31 +245,89 @@
 
                             <!-- Docker Overrides Section -->
                             <div class="row g-4 mt-1">
-                                <div class="col-12">
+                                <div class="col-12 col-xxl-8">
                                     <section class="card-shell p-4 p-lg-5">
                                         <div class="section-header mb-4">
                                             <div class="section-icon"><i class="bi bi-file-earmark-code"></i></div>
                                             <div>
                                                 <p class="eyebrow eyebrow-dark mb-2">Avancé</p>
+                                                <h2 class="section-title mb-1">Montages de configuration</h2>
+                                                <p class="section-copy mb-0">Remplacez les fichiers de configuration dans les conteneurs avec vos propres versions. Utile pour adapter database.php, config.php, ou constants.php de CI3.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Montage configs CI3</label>
+                                                <select class="form-select" name="CI3_OVERRIDE_CONFIGS">
+                                                    <option value="false">Désactivé</option>
+                                                    <option value="true">Actif</option>
+                                                </select>
+                                                <div class="form-text mt-1">Monte <code>docker/config/*.php</code> vers <code>application/config/development/</code> pour remplacer database.php, config.php, constants.php.</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Type d'application CI3</label>
+                                                <select class="form-select" name="CI3_APP_TYPE">
+                                                    <option value="single">Application unique</option>
+                                                    <option value="dual-webservice">App + Webservice (configs partagés)</option>
+                                                    <option value="dual-api">App + API (configs séparés)</option>
+                                                </select>
+                                                <div class="form-text mt-1"><strong>Single:</strong> monte configs vers <code>application/</code> uniquement. <strong>Webservice:</strong> monte aussi vers <code>webservice/v1/</code>. <strong>API:</strong> monte <code>api-*.php</code> vers <code>api/application/</code>. <em>Ajoute automatiquement des volumes pour logs/cache afin d'éviter les erreurs de permission.</em></div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Chemin de sessions personnalisé</label>
+                                                <input class="form-control" type="text" name="CI3_CUSTOM_SESSION_PATH" placeholder="/var/www/compte/sessions">
+                                                <div class="form-text mt-1">Si votre Dockerfile crée un dossier de sessions personnalisé (ex: <code>/var/www/compte/sessions</code>), indiquez-le ici. Laissez vide pour utiliser les sessions par défaut.</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Montage config Nginx</label>
+                                                <select class="form-select" name="OVERRIDE_NGINX_CONFIG">
+                                                    <option value="false">Désactivé</option>
+                                                    <option value="true">Actif</option>
+                                                </select>
+                                                <div class="form-text mt-1">Monte <code>docker/nginx/default.conf</code> pour personnaliser la configuration Nginx (multi-ports, règles de réécriture, etc.).</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label label-caps">Connexion réseau dbserver</label>
+                                                <select class="form-select" name="CONNECT_TO_DBSERVER">
+                                                    <option value="false">Non</option>
+                                                    <option value="true">Oui</option>
+                                                </select>
+                                                <div class="form-text mt-1">Connecte php et nginx au réseau externe <code>dbserver_licences_default</code> de db-docker-server. Active uniquement si vous utilisez le réseau docker de dbserver.</div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <div class="col-12 col-xxl-4">
+                                    <section class="card-shell p-4 p-lg-5 h-100">
+                                        <div class="section-header mb-4">
+                                            <div class="section-icon"><i class="bi bi-info-circle"></i></div>
+                                            <div>
+                                                <p class="eyebrow eyebrow-dark mb-2">Comment ça marche</p>
                                                 <h2 class="section-title mb-1">Surcharges Docker</h2>
-                                                <p class="section-copy mb-0">Personnalisez les configurations Nginx et PHP/CI3 avec des fichiers montés par volume.</p>
                                             </div>
                                         </div>
 
-                                        <div id="docker-overrides-status" class="docker-overrides-status">
-                                            <div class="alert alert-info mb-0">
-                                                <i class="bi bi-info-circle me-2"></i>
-                                                <span id="docker-overrides-message">Chargement...</span>
-                                            </div>
-                                        </div>
+                                        <div class="small">
+                                            <p>Ces paramètres génèrent automatiquement un fichier <code>docker-compose.override.yml</code> au démarrage de l'instance.</p>
 
-                                        <div class="mt-3" id="docker-overrides-actions" style="display: none;">
-                                            <button type="button" id="enable-docker-overrides" class="btn btn-primary">
-                                                <i class="bi bi-plus-circle me-2"></i>Activer les surcharges Docker
-                                            </button>
-                                            <p class="form-text mt-2">
-                                                Cela créera <code>docker-compose.override.yml</code> et les templates de configuration dans <code>docker/</code>
-                                            </p>
+                                            <p class="mb-2"><strong>Montage configs CI3:</strong></p>
+                                            <ul class="mb-3">
+                                                <li>Créez <code>docker/config/database.php</code></li>
+                                                <li>Créez <code>docker/config/config.php</code></li>
+                                                <li>Créez <code>docker/config/constants.php</code></li>
+                                                <li><em>Ajoute automatiquement des volumes pour <code>logs/</code> et <code>cache/</code></em></li>
+                                            </ul>
+
+                                            <p class="mb-2"><strong>Pour API séparée:</strong></p>
+                                            <ul class="mb-3">
+                                                <li>Ajoutez <code>docker/config/api-database.php</code></li>
+                                                <li>Ajoutez <code>docker/config/api-config.php</code></li>
+                                                <li>Ajoutez <code>docker/config/api-constants.php</code></li>
+                                            </ul>
+
+                                            <p class="mb-0 text-secondary"><i class="bi bi-lightbulb me-1"></i>Voir <code>templates/OVERRIDE-EXAMPLES.md</code> pour des exemples complets.</p>
                                         </div>
                                     </section>
                                 </div>
